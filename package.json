@@ -1,0 +1,12 @@
+{
+  "name": "hallway-crm-inceneration",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hallway - HUB Digital Corridor Workspace",
+  "scripts": {
+    "dev": "npm --prefix my-app run dev",
+    "build": "npm --prefix my-app run build",
+    "start": "npm --prefix my-app run start",
+    "lint": "npm --prefix my-app run lint"
+  }
+}
