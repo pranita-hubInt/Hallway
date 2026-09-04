@@ -1,0 +1,301 @@
+[
+  {
+    "id": "post-1",
+    "type": "booking",
+    "categoryColor": "#10B981",
+    "title": "New Booking: ₹42L by Sarjapura Team",
+    "timestamp": "Just Now",
+    "author": {
+      "name": "Rahul Sharma",
+      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "team": "Sarjapura Enterprise Hub"
+    },
+    "content": "Rahul closed the Deal #4828 at Sarjapura phase 2. Incredible work team!",
+    "reactions": {
+      "thumbsUp": 12,
+      "clap": 5,
+      "heart": 8,
+      "userThumbsUp": false,
+      "userClap": true,
+      "userHeart": false
+    },
+    "commentsCount": 3,
+    "department": "Sales",
+    "comments": [
+      {
+        "id": "c1-1",
+        "authorName": "Sarah Jenkins",
+        "authorHandle": "sarah.j",
+        "authorAvatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Enterprise AE",
+        "content": "Phenomenal turnaround on this! Big congratulations Rahul & team! 🚀",
+        "timestamp": "2m ago",
+        "createdAt": "2026-09-04T10:15:00.000Z",
+        "likes": 3,
+        "userLiked": false
+      },
+      {
+        "id": "c1-2",
+        "authorName": "Ranjith",
+        "authorHandle": "ranjith",
+        "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "CRM Lead",
+        "content": "The client handover went seamlessly through presales as well. Great sync!",
+        "timestamp": "5m ago",
+        "createdAt": "2026-09-04T10:12:00.000Z",
+        "likes": 2,
+        "userLiked": true
+      },
+      {
+        "id": "c1-3",
+        "authorName": "Maya Lin",
+        "authorHandle": "maya.lin",
+        "authorAvatar": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Design Lead",
+        "content": "3D staging renders are prepped for phase 2 buyer walkthroughs.",
+        "timestamp": "8m ago",
+        "createdAt": "2026-09-04T10:09:00.000Z",
+        "likes": 1,
+        "userLiked": false
+      }
+    ]
+  },
+  {
+    "id": "post-2",
+    "type": "quota",
+    "categoryColor": "#8B5CF6",
+    "title": "JP Nagar hit 80% of target!",
+    "timestamp": "45 mins ago",
+    "author": {
+      "name": "Priya Sharma",
+      "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "team": "JP Nagar Branch"
+    },
+    "content": "The JP Nagar office is on track to smash this month's quota. Keep pushing!",
+    "quotaProgress": {
+      "current": 80,
+      "target": 100,
+      "label": "Monthly Quota",
+      "percentage": 80
+    },
+    "reactions": {
+      "thumbsUp": 8,
+      "clap": 3,
+      "heart": 4,
+      "userThumbsUp": true,
+      "userClap": false,
+      "userHeart": false
+    },
+    "commentsCount": 1,
+    "department": "Sales",
+    "comments": [
+      {
+        "id": "c2-1",
+        "authorName": "Michael Vance",
+        "authorHandle": "michael.v",
+        "authorAvatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Alpha Squad Lead",
+        "content": "Solid pacing Priya! That last push will get you to 100% by Wednesday.",
+        "timestamp": "30m ago",
+        "createdAt": "2026-09-04T09:45:00.000Z",
+        "likes": 2,
+        "userLiked": false
+      }
+    ]
+  },
+  {
+    "id": "post-3",
+    "type": "performer",
+    "categoryColor": "#F59E0B",
+    "title": "Weekly Top Performer Announced",
+    "timestamp": "2 hours ago",
+    "author": {
+      "name": "Hallway People Operations",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "team": "HQ Leadership"
+    },
+    "content": "Congratulations to Sarah Jenkins for securing the most walk-in conversions this week.",
+    "reactions": {
+      "thumbsUp": 24,
+      "clap": 9,
+      "heart": 14,
+      "userThumbsUp": true,
+      "userClap": true,
+      "userHeart": false
+    },
+    "commentsCount": 8,
+    "department": "Sales",
+    "comments": [
+      {
+        "id": "comm-1788519400543-b3md",
+        "authorName": "Ranjith",
+        "authorHandle": "ranjith",
+        "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "CRM Lead",
+        "content": "Incredible work Sarah! Your 95% conversion velocity is an inspiration to all of us 🔥🙌",
+        "timestamp": "Just now",
+        "createdAt": "2026-09-04T10:56:40.543Z",
+        "likes": 1,
+        "userLiked": true
+      },
+      {
+        "id": "comm-1788518977662-dxey",
+        "authorName": "Ranjith",
+        "authorHandle": "ranjith",
+        "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "CRM Lead",
+        "content": "Testing Ranjith comment",
+        "timestamp": "Just now",
+        "createdAt": "2026-09-04T10:49:37.662Z",
+        "likes": 0,
+        "userLiked": false
+      },
+      {
+        "id": "c3-1",
+        "authorName": "Ranjith",
+        "authorHandle": "ranjith",
+        "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "CRM Lead",
+        "content": "Phenomenal performance Sarah! That 95% conversion velocity is an inspiration to the entire presales pipeline! 🔥👏",
+        "timestamp": "12m ago",
+        "createdAt": "2026-09-04T08:30:00.000Z",
+        "likes": 7,
+        "userLiked": true
+      },
+      {
+        "id": "c3-2",
+        "authorName": "Maya Lin",
+        "authorHandle": "maya.lin",
+        "authorAvatar": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Design Lead",
+        "content": "Huge congratulations Sarah! Always a pleasure collaborating with you on custom floor layouts ✨",
+        "timestamp": "25m ago",
+        "createdAt": "2026-09-04T08:20:00.000Z",
+        "likes": 5,
+        "userLiked": false
+      },
+      {
+        "id": "c3-3",
+        "authorName": "Marcus Wei",
+        "authorHandle": "marcus.w",
+        "authorAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Mid-Market AE",
+        "content": "Setting the bar super high as always Sarah! Time to celebrate at the next townhall 🥂",
+        "timestamp": "40m ago",
+        "createdAt": "2026-09-04T08:05:00.000Z",
+        "likes": 4,
+        "userLiked": false
+      },
+      {
+        "id": "c3-4",
+        "authorName": "Super Admin",
+        "authorHandle": "admin",
+        "authorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Leadership HQ",
+        "content": "Recognized in the executive corridor and logged into the Book of Records! Outstanding execution Sarah.",
+        "timestamp": "1 hour ago",
+        "createdAt": "2026-09-04T07:45:00.000Z",
+        "likes": 6,
+        "userLiked": true
+      },
+      {
+        "id": "c3-5",
+        "authorName": "Elena Rostova",
+        "authorHandle": "elena.r",
+        "authorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Enterprise SE",
+        "content": "So proud to work alongside you Sarah! Well-earned recognition 💯",
+        "timestamp": "1h 15m ago",
+        "createdAt": "2026-09-04T07:30:00.000Z",
+        "likes": 3,
+        "userLiked": false
+      },
+      {
+        "id": "c3-6",
+        "authorName": "David Kim",
+        "authorHandle": "david.k",
+        "authorAvatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Growth AE",
+        "content": "Incredible streak Sarah! Let's keep the momentum rolling into Q4 🙌",
+        "timestamp": "1h 30m ago",
+        "createdAt": "2026-09-04T07:15:00.000Z",
+        "likes": 2,
+        "userLiked": false
+      }
+    ]
+  },
+  {
+    "id": "post-4",
+    "type": "announcement",
+    "categoryColor": "#EF4444",
+    "title": "Q2 All-Hands Townhall Scheduled",
+    "timestamp": "Yesterday",
+    "author": {
+      "name": "Leadership Office",
+      "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+      "team": "Executive Suite"
+    },
+    "content": "Join us next Thursday at 10 AM EST for the quarterly review. We will be celebrating the new Book of Records inductees.",
+    "reactions": {
+      "thumbsUp": 31,
+      "clap": 14,
+      "heart": 10,
+      "userThumbsUp": false,
+      "userClap": false,
+      "userHeart": false
+    },
+    "commentsCount": 4,
+    "department": "Company Wide",
+    "comments": [
+      {
+        "id": "c4-1",
+        "authorName": "Ranjith",
+        "authorHandle": "ranjith",
+        "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "CRM Lead",
+        "content": "Looking forward to presenting the conversion cycle optimizations!",
+        "timestamp": "Yesterday",
+        "createdAt": "2026-09-03T15:00:00.000Z",
+        "likes": 4,
+        "userLiked": true
+      }
+    ]
+  },
+  {
+    "id": "post-5",
+    "type": "announcement",
+    "categoryColor": "#3B82F6",
+    "title": "Fast Track Week Incentive Launch",
+    "timestamp": "2 days ago",
+    "author": {
+      "name": "Commercial Operations",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "team": "Ops HQ"
+    },
+    "content": "Double commission on all deals closed before Friday 5 PM. Track live standings on the Sales Velocity Leaderboard.",
+    "reactions": {
+      "thumbsUp": 45,
+      "clap": 28,
+      "heart": 22,
+      "userThumbsUp": true,
+      "userClap": true,
+      "userHeart": true
+    },
+    "commentsCount": 5,
+    "department": "Sales",
+    "comments": [
+      {
+        "id": "c5-1",
+        "authorName": "Sarah Jenkins",
+        "authorHandle": "sarah.j",
+        "authorAvatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+        "authorRole": "Enterprise AE",
+        "content": "Game on team! Let's crush this week's leaderboard! 🎯",
+        "timestamp": "2 days ago",
+        "createdAt": "2026-09-02T11:00:00.000Z",
+        "likes": 9,
+        "userLiked": true
+      }
+    ]
+  }
+]

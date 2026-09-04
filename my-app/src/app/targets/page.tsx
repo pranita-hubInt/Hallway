@@ -1,15 +1,20 @@
 'use client';
 
 import React from 'react';
-import { Target, TrendingUp, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 export default function TargetsPage() {
+  const { searchQuery } = useApp();
   const targetCards = [
     { title: 'Q3 Enterprise Revenue', current: '$12.4M', target: '$15.0M', progress: 82.6, color: 'from-emerald-500 to-teal-500' },
     { title: 'Monthly Conversion Quota', current: '80%', target: '100%', progress: 80, color: 'from-indigo-500 to-purple-500' },
     { title: 'Customer Acquisition Velocity', current: '142 Deals', target: '160 Deals', progress: 88.7, color: 'from-amber-500 to-orange-500' },
     { title: 'Average Sales Cycle', current: '18.4 Days', target: '14.0 Days', progress: 76.0, color: 'from-rose-500 to-pink-500' },
   ];
+
+  const filteredCards = targetCards.filter((t) =>
+    !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -23,7 +28,7 @@ export default function TargetsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {targetCards.map((t, idx) => (
+        {filteredCards.map((t, idx) => (
           <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{t.title}</span>

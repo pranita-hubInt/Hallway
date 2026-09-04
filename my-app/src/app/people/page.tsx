@@ -3,12 +3,17 @@
 import React, { useState } from 'react';
 import { Users, Search, Mail, Phone, MapPin } from 'lucide-react';
 import { leaderboardMembersMock } from '../../data/mockData';
+import { useApp } from '../../context/AppContext';
 
 export default function PeoplePage() {
+  const { searchQuery, setSearchQuery } = useApp();
   const [search, setSearch] = useState('');
+
+  const effectiveSearch = search || searchQuery;
   const members = leaderboardMembersMock.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.role.toLowerCase().includes(search.toLowerCase())
+    m.name.toLowerCase().includes(effectiveSearch.toLowerCase()) ||
+    m.role.toLowerCase().includes(effectiveSearch.toLowerCase()) ||
+    m.department.toLowerCase().includes(effectiveSearch.toLowerCase())
   );
 
   return (

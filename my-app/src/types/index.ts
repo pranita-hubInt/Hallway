@@ -12,10 +12,14 @@ export interface User {
 export interface Comment {
   id: string;
   authorName: string;
+  authorHandle?: string;
   authorAvatar: string;
   authorRole: string;
   content: string;
   timestamp: string;
+  createdAt?: string;
+  likes?: number;
+  userLiked?: boolean;
 }
 
 export interface FeedPost {
@@ -39,8 +43,10 @@ export interface FeedPost {
   reactions: {
     thumbsUp: number;
     clap: number;
+    heart?: number;
     userThumbsUp?: boolean;
     userClap?: boolean;
+    userHeart?: boolean;
   };
   commentsCount: number;
   comments: Comment[];

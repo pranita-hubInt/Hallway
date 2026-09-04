@@ -5,6 +5,8 @@
   "description": "Hallway - HUB Digital Corridor Workspace",
   "scripts": {
     "dev": "npm --prefix my-app run dev",
+    "server": "node server/index.js",
+    "dev:server": "npm --prefix server run dev",
     "build": "npm --prefix my-app run build",
     "start": "npm --prefix my-app run start",
     "lint": "npm --prefix my-app run lint"
