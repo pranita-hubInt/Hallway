@@ -128,6 +128,9 @@ function toResponse(status: number, contentType: string | null, body: ArrayBuffe
 
 function hubErrorMessage(body: ArrayBuffer): string {
   const text = new TextDecoder().decode(body);
+  if (/no static resource/i.test(text)) {
+    return `Hub CRM at ${CRM_BASE} does not have Hallway APIs loaded. Restart Project-ERP from the latest source so GET /v1/hallway/leaderboard exists.`;
+  }
   try {
     const parsed = JSON.parse(text) as { error?: string; message?: string };
     if (parsed.error || parsed.message) return parsed.error || parsed.message || text;
@@ -138,26 +141,45 @@ function hubErrorMessage(body: ArrayBuffer): string {
   return `Hub CRM failed this request at ${CRM_BASE}. Confirm Project-ERP is running and includes the Hallway showcase APIs.`;
 }
 
-function coalesceGet(target: string, load: () => Promise<UpstreamPayload>): Promise<UpstreamPayload> {
-  let pending = getInflight.get(target);
+function isMissingHallwayApi(status: number, body: ArrayBuffer): boolean {
+  if (status !== 404 && status !== 500) return false;
+  const text = new TextDecoder().decode(body);
+  return /no static resource|whitelabel error/i.test(text);
+}
+
+function candidateTargets(path: string, search: string): string[] {
+  if (path.startsWith('v1/hallway/') || path.startsWith('api/hallway/')) {
+    const rest = path.replace(/^v1\/hallway\//, '').replace(/^api\/hallway\//, '');
+    return [
+      `${CRM_BASE}/v1/hallway/${rest}${search}`,
+      `${CRM_BASE}/api/hallway/${rest}${search}`,
+      `${CRM_BASE}/api/v1/hallway/${rest}${search}`,
+    ];
+  }
+  return [`${CRM_BASE}/${path}${search}`];
+}
+
+function coalesceGet(key: string, load: () => Promise<UpstreamPayload>): Promise<UpstreamPayload> {
+  let pending = getInflight.get(key);
   if (!pending) {
     pending = load().finally(() => {
-      getInflight.delete(target);
+      getInflight.delete(key);
     });
-    getInflight.set(target, pending);
+    getInflight.set(key, pending);
   }
   return pending;
 }
 
-export async function proxyToCrm(request: Request, pathParts: string[]): Promise<Response> {
-  const path = pathParts.join('/');
-  const incoming = new URL(request.url);
-  const target = `${CRM_BASE}/${path}${incoming.search}`;
-  const method = request.method.toUpperCase();
-  const hasBody = method !== 'GET' && method !== 'HEAD';
-  const body = hasBody ? await request.clone().arrayBuffer() : undefined;
+async function fetchWithFallback(
+  path: string,
+  search: string,
+  method: string,
+  body?: ArrayBuffer
+): Promise<UpstreamPayload> {
+  const targets = candidateTargets(path, search);
+  let last: UpstreamPayload | null = null;
 
-  const load = async () => {
+  for (const target of targets) {
     let token = await getShowcaseCrmToken();
     let res = await fetchUpstream(target, token, method, body);
     if (res.status === 401) {
@@ -165,29 +187,36 @@ export async function proxyToCrm(request: Request, pathParts: string[]): Promise
       res = await fetchUpstream(target, token, method, body);
     }
     const buf = await res.arrayBuffer();
-    return {
+    last = {
       status: res.status,
       contentType: res.headers.get('Content-Type'),
       body: buf,
     };
-  };
+    if (!isMissingHallwayApi(last.status, last.body)) return last;
+  }
+
+  return last as UpstreamPayload;
+}
+
+export async function proxyToCrm(request: Request, pathParts: string[]): Promise<Response> {
+  const path = pathParts.join('/');
+  const incoming = new URL(request.url);
+  const method = request.method.toUpperCase();
+  const hasBody = method !== 'GET' && method !== 'HEAD';
+  const body = hasBody ? await request.clone().arrayBuffer() : undefined;
+  const key = `${method}:${path}${incoming.search}`;
 
   try {
-    const out = method === 'GET' ? await coalesceGet(target, load) : await load();
-    if (out.status >= 500) {
-      return Response.json(
-        { error: hubErrorMessage(out.body) },
-        { status: 503 }
-      );
+    const out =
+      method === 'GET'
+        ? await coalesceGet(key, () => fetchWithFallback(path, incoming.search, method, body))
+        : await fetchWithFallback(path, incoming.search, method, body);
+    if (out.status >= 500 || isMissingHallwayApi(out.status, out.body)) {
+      return Response.json({ error: hubErrorMessage(out.body) }, { status: 503 });
     }
     return toResponse(out.status, out.contentType, out.body);
   } catch (err) {
-    return Response.json(
-      {
-        error: describeUpstreamError(err),
-      },
-      { status: 503 }
-    );
+    return Response.json({ error: describeUpstreamError(err) }, { status: 503 });
   }
 }
 
