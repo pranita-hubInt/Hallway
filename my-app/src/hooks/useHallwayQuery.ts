@@ -46,9 +46,7 @@ export function useHallwayQuery<T>(
   );
 
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    void load();
   }, [load]);
 
   const refetch = useCallback(() => {
