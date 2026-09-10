@@ -1,20 +1,25 @@
 'use client';
 
 import React from 'react';
-import { useApp } from '../../context/AppContext';
+import { useTargets } from '../../hooks/useTargets';
+import EmptyState from '../../components/common/EmptyState';
+import {
+  CorridorBanner,
+  CorridorGate,
+  CorridorSkeleton,
+} from '../../components/hallway/CorridorGate';
+import { CorridorScopeBar, useCorridorScope } from '../../components/hallway/CorridorScopeBar';
+import { progressWidth } from '../../lib/hallwayDisplay';
 
-export default function TargetsPage() {
-  const { searchQuery } = useApp();
-  const targetCards = [
-    { title: 'Q3 Enterprise Revenue', current: '$12.4M', target: '$15.0M', progress: 82.6, color: 'from-emerald-500 to-teal-500' },
-    { title: 'Monthly Conversion Quota', current: '80%', target: '100%', progress: 80, color: 'from-indigo-500 to-purple-500' },
-    { title: 'Customer Acquisition Velocity', current: '142 Deals', target: '160 Deals', progress: 88.7, color: 'from-amber-500 to-orange-500' },
-    { title: 'Average Sales Cycle', current: '18.4 Days', target: '14.0 Days', progress: 76.0, color: 'from-rose-500 to-pink-500' },
-  ];
-
-  const filteredCards = targetCards.filter((t) =>
-    !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+function TargetsInner() {
+  const { branchId, setBranchId, salesManagerId, setSalesManagerId, options, auth } =
+    useCorridorScope();
+  const { data, loading, error } = useTargets({
+    branchId,
+    salesManagerId,
+    salesExecutiveId: auth.isExecutive ? auth.user?.id : undefined,
+  });
+  const cards = data?.cards || [];
 
   return (
     <div className="space-y-6">
@@ -23,27 +28,72 @@ export default function TargetsPage() {
           Operating Targets & Quotas
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Division quarterly benchmarks, milestone progress tracking, and pacing analytics.
+          Monthly gross booking vs Hub incentives target. Progress comes from CRM.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredCards.map((t, idx) => (
-          <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{t.title}</span>
-              <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">{t.progress}%</span>
+      <CorridorScopeBar
+        branchId={branchId}
+        salesManagerId={salesManagerId}
+        options={options}
+        onBranch={setBranchId}
+        onManager={setSalesManagerId}
+        showManager={!auth.isExecutive}
+      />
+
+      <CorridorBanner error={error} />
+
+      {loading ? (
+        <CorridorSkeleton rows={4} />
+      ) : cards.length === 0 ? (
+        <EmptyState
+          title="No operating targets yet"
+          description="Quota and pacing cards will appear here when CRM returns target rows."
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {cards.map((card, idx) => (
+            <div
+              key={`${card.title}-${card.yearMonth || idx}`}
+              className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {card.title}
+                </span>
+                <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                  {card.progress}%
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="font-mono text-2xl font-black text-slate-900 dark:text-white">
+                  {card.current}
+                </span>
+                <span className="text-xs text-slate-400">Target: {card.target}</span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500"
+                  style={{ width: progressWidth(card.progress) }}
+                />
+              </div>
+              {(card.targetSource || card.yearMonth) && (
+                <p className="text-[11px] text-slate-400">
+                  {[card.targetSource, card.yearMonth].filter(Boolean).join(' · ')}
+                </p>
+              )}
             </div>
-            <div className="flex items-baseline justify-between">
-              <span className="font-mono text-2xl font-black text-slate-900 dark:text-white">{t.current}</span>
-              <span className="text-xs text-slate-400">Target: {t.target}</span>
-            </div>
-            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full bg-gradient-to-r ${t.color}`} style={{ width: `${t.progress}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function TargetsPage() {
+  return (
+    <CorridorGate>
+      <TargetsInner />
+    </CorridorGate>
   );
 }

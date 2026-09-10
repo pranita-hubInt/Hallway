@@ -13,7 +13,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { designProjectsMock } from '../../data/mockData';
+import EmptyState from '../../components/common/EmptyState';
 
 export default function DesignErpPage() {
   const { designProjects, addDesignProject, searchQuery } = useApp();
@@ -84,10 +84,10 @@ export default function DesignErpPage() {
       {/* Studio KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: 'Active 3D Staging', value: '14 Renders', sub: '4 awaiting client review', color: 'text-purple-500' },
-          { title: 'Render Turnaround', value: '2.4 Days', sub: '98% on-time milestone', color: 'text-emerald-500' },
-          { title: 'Material Palette Sign-offs', value: '38 Specs', sub: 'Sarjapura & Whitefield', color: 'text-blue-500' },
-          { title: 'Client Approval CSAT', value: '4.98/5', sub: 'Rank #1 Design Team', color: 'text-amber-500' },
+          { title: 'Active 3D Staging', value: `${designProjects.filter((p) => p.stage === '3D Staging').length} Renders`, sub: 'Live studio count', color: 'text-purple-500' },
+          { title: 'Open sheets', value: String(designProjects.length), sub: 'Projects in pipeline', color: 'text-emerald-500' },
+          { title: 'Approved', value: String(designProjects.filter((p) => p.stage === 'Approved').length), sub: 'Signed-off sheets', color: 'text-blue-500' },
+          { title: 'In sign-off', value: String(designProjects.filter((p) => p.stage === 'Client Sign-off').length), sub: 'Awaiting client', color: 'text-amber-500' },
         ].map((kpi, idx) => (
           <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">{kpi.title}</span>
@@ -117,7 +117,12 @@ export default function DesignErpPage() {
         })}
       </div>
 
-      {/* Design Projects Gallery Grid */}
+      {filteredProjects.length === 0 ? (
+        <EmptyState
+          title="No design sheets yet"
+          description="Studio projects will appear here when they are created."
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredProjects.map((p) => (
           <div
@@ -180,8 +185,7 @@ export default function DesignErpPage() {
           </div>
         ))}
       </div>
-
-      {/* 3D Preview Modal */}
+      )}
       {previewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-4 shadow-2xl relative">

@@ -92,7 +92,6 @@ export default function AnnouncementsPage() {
         )}
       </div>
 
-      {/* Announcements Feed with Live Comments & Reactions */}
       <div className="space-y-4 max-w-3xl">
         {filteredAnnouncements.map((post) => (
           <FeedCard key={post.id} post={post} />

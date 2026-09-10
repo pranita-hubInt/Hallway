@@ -58,7 +58,7 @@ interface AppContextType {
   setActiveLeaderboardView: (v: 'Individual' | 'Team') => void;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+const HALLWAY_LOCAL_API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -73,7 +73,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsMock);
   const [crmLeads, setCrmLeads] = useState<CrmLeadItem[]>(crmLeadsMock);
   const [designProjects, setDesignProjects] = useState<DesignProject[]>(designProjectsMock);
-  const [notificationsCount, setNotificationsCount] = useState<number>(99);
+  const [notificationsCount, setNotificationsCount] = useState<number>(0);
   const [activeTimeframe, setActiveTimeframe] = useState<'Today' | 'MTD' | 'QTD'>('Today');
   const [activeLeaderboardView, setActiveLeaderboardView] = useState<'Individual' | 'Team'>('Individual');
 
@@ -96,16 +96,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch announcements from Express backend
   const refreshFeed = async () => {
+    if (!HALLWAY_LOCAL_API) return;
     try {
-      const res = await fetch(`${API_BASE}/announcements`);
+      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setFeedPosts(data);
         }
       }
     } catch {
-      // Backend not running yet or offline, fallback to mock data
+      // Optional local announcements server is not running.
     }
   };
 
@@ -157,8 +158,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    if (!HALLWAY_LOCAL_API) return;
     try {
-      await fetch(`${API_BASE}/announcements/${postId}/reactions`, {
+      await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reactionType })
@@ -189,8 +191,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    if (!HALLWAY_LOCAL_API) return;
     try {
-      await fetch(`${API_BASE}/announcements/${postId}/comments/${commentId}/like`, {
+      await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/comments/${commentId}/like`, {
         method: 'POST'
       });
     } catch {
@@ -235,8 +238,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    if (!HALLWAY_LOCAL_API) return;
     try {
-      const res = await fetch(`${API_BASE}/announcements/${postId}/comments`, {
+      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -301,8 +305,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setFeedPosts((prev) => [newPost, ...prev]);
 
+    if (!HALLWAY_LOCAL_API) return;
     try {
-      const res = await fetch(`${API_BASE}/announcements`, {
+      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

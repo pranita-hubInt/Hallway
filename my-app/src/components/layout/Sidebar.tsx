@@ -12,6 +12,7 @@ import {
   Megaphone,
   Briefcase,
   Palette,
+  LineChart,
   Sun,
   Moon,
   LogOut,
@@ -45,9 +46,12 @@ export default function Sidebar() {
     { name: 'Announcements', href: '/announcements', icon: Megaphone, badge: undefined },
   ];
 
-  const erpItem = isDesigner
-    ? { name: 'Design ERP', href: '/design-erp', icon: Palette, badge: 'Studio' }
-    : { name: 'CRM ERP', href: '/crm-erp', icon: Briefcase, badge: 'Presales' };
+  const erpItems = isDesigner
+    ? [{ name: 'Design ERP', href: '/design-erp', icon: Palette, badge: 'Studio' }]
+    : [
+        { name: 'CRM ERP', href: '/crm-erp', icon: Briefcase, badge: 'Presales' },
+        { name: 'Insights', href: '/insights', icon: LineChart, badge: 'CRM' },
+      ];
 
   const handleLogout = () => {
     logout();
@@ -127,12 +131,13 @@ export default function Sidebar() {
             </span>
           )}
 
-          {(() => {
+          {erpItems.map((erpItem) => {
             const isActive = pathname.startsWith(erpItem.href);
             const ErpIcon = erpItem.icon;
 
             return (
               <Link
+                key={erpItem.href}
                 href={erpItem.href}
                 title={sidebarCollapsed ? erpItem.name : undefined}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all group relative ${
@@ -167,7 +172,7 @@ export default function Sidebar() {
                 )}
               </Link>
             );
-          })()}
+          })}
         </div>
       </nav>
 

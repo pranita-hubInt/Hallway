@@ -45,12 +45,6 @@ export default function FeedCard({ post }: { post: FeedPost }) {
       handle: 'maya.lin',
       avatar: designerUserMock.avatar,
       role: 'Design Lead'
-    },
-    {
-      name: 'Michael Vance',
-      handle: 'michael.v',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-      role: 'Alpha Squad Lead'
     }
   ];
 
@@ -196,12 +190,12 @@ export default function FeedCard({ post }: { post: FeedPost }) {
             <div className="bg-amber-50/60 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-900/40">
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 mb-1.5">
                 <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>Quick Cheers for Sarah Jenkins:</span>
+                <span>Quick cheers:</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  '🎉 Incredible performance Sarah!',
-                  '👏 Unmatched conversion velocity! 🔥',
+                  '🎉 Incredible performance!',
+                  '👏 Unmatched conversion velocity!',
                   '🚀 Inspiring the entire corridor!',
                   '🙌 Best numbers this quarter!'
                 ].map((preset) => (

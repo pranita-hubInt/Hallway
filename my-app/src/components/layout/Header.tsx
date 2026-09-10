@@ -58,6 +58,7 @@ export default function Header() {
     if (pathname === '/people') return { module: 'HUB Directory', title: 'People & Directory' };
     if (pathname === '/announcements') return { module: 'HUB Broadcasts', title: 'Announcements' };
     if (pathname === '/crm-erp') return { module: 'Hows Presales', title: 'Lead Management' };
+    if (pathname === '/insights') return { module: 'Hows Presales', title: 'CRM Insights' };
     if (pathname === '/design-erp') return { module: 'Hows Design', title: '3D Spatial Studio' };
     return { module: 'HUB Live', title: 'Home Feed' };
   };
@@ -338,14 +339,7 @@ export default function Header() {
                 <span className="text-[11px] text-sky-500 font-semibold cursor-pointer hover:underline" onClick={() => setIsNotifOpen(false)}>Done</span>
               </div>
               <div className="space-y-2">
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs">
-                  <p className="font-bold text-slate-800 dark:text-slate-200">Rahul closed Deal #4828</p>
-                  <p className="text-[11px] text-slate-400">Sarjapura Team booked ₹42L milestone</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs">
-                  <p className="font-bold text-slate-800 dark:text-slate-200">Weekly Top Performer</p>
-                  <p className="text-[11px] text-slate-400">Sarah Jenkins reached 95% conversion velocity</p>
-                </div>
+                <p className="p-2.5 text-xs text-slate-400 text-center">No activity alerts.</p>
               </div>
             </div>
           )}

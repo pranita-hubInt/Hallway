@@ -1,71 +1,69 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useHallwayLeads } from '../../hooks/useHallwayLeads';
+import { useMilestoneCounts } from '../../hooks/useMilestoneCounts';
+import EmptyState from '../../components/common/EmptyState';
 import {
-  Filter,
-  ArrowUpDown,
-  Plus,
-  Trash2,
-  UserCheck,
-  CheckCircle,
-  HelpCircle,
-  ExternalLink
-} from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { crmLeadsMock } from '../../data/mockData';
+  CorridorBanner,
+  CorridorGate,
+  CorridorSkeleton,
+} from '../../components/hallway/CorridorGate';
+import { CorridorScopeBar, useCorridorScope } from '../../components/hallway/CorridorScopeBar';
+import { istMonthBounds, milestoneLabel, progressWidth } from '../../lib/hallwayDisplay';
 
-export default function CrmErpPage() {
-  const { crmLeads, addCrmLead, deleteCrmLead, searchQuery } = useApp();
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+const PAGE_SIZE = 20;
 
-  // New Lead Form State
-  const [leadName, setLeadName] = useState('');
-  const [leadCode, setLeadCode] = useState('IV-HSHHODSR12');
-  const [owner, setOwner] = useState('Alice');
+function heatmapTone(count: number, max: number) {
+  if (max <= 0 || count <= 0) return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+  const ratio = count / max;
+  if (ratio >= 0.66) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300';
+  if (ratio >= 0.33) return 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300';
+  return 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300';
+}
 
-  const filteredLeads = crmLeads.filter((l) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        l.leadName.toLowerCase().includes(q) ||
-        l.leadCode.toLowerCase().includes(q) ||
-        l.owner.toLowerCase().includes(q)
-      );
-    }
-    return true;
+function CrmErpInner() {
+  const { branchId, setBranchId, salesManagerId, setSalesManagerId, options } = useCorridorScope();
+  const [page, setPage] = useState(0);
+  const [phasesOpen, setPhasesOpen] = useState(true);
+  const month = useMemo(() => istMonthBounds(), []);
+
+  const { data, loading, error } = useHallwayLeads({
+    page,
+    size: PAGE_SIZE,
+    branchId,
+    salesManagerId,
   });
 
-  const handleCreateLead = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leadName.trim()) return;
-    addCrmLead({
-      enquiryDate: '03 Sept 2026',
-      leadName,
-      leadCode,
-      tags: [
-        { label: 'IVR Call', bg: 'bg-purple-100 dark:bg-purple-950/60', text: 'text-purple-700 dark:text-purple-300' },
-        { label: 'Fresh Data', bg: 'bg-blue-100 dark:bg-blue-950/60', text: 'text-blue-700 dark:text-blue-300' }
-      ],
-      status: 'Fresh Data',
-      journeyTrack: { label: 'FRESH DATA', currentStep: 1, totalSteps: 3 },
-      owner,
-      engagement: 'Just now Updated',
-      dueDate: 'Today',
-      dueTime: '6:00 PM'
-    });
-    setLeadName('');
-    setShowCreateModal(false);
-  };
+  const milestoneParams = useMemo(() => {
+    const params: Record<string, string> = {
+      dateField: 'created',
+      dateFrom: month.dateFrom,
+      dateTo: month.dateTo,
+    };
+    if (branchId) params.branchId = branchId;
+    return params;
+  }, [branchId, month.dateFrom, month.dateTo]);
+
+  const {
+    data: milestones,
+    loading: milestonesLoading,
+    error: milestonesError,
+  } = useMilestoneCounts(milestoneParams);
+
+  const leads = data?.leads || [];
+  const total = data?.total ?? 0;
+  const categories = milestones?.countsByMilestoneStageCategory || [];
+  const maxCount = Math.max(0, ...categories.map((item) => Number(item.count) || 0));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-5 font-sans">
-      {/* Top Header & Heatmap Legend */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
           Journey Phase Heatmap
         </h1>
-        {/* Heatmap Legend */}
         <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -82,286 +80,218 @@ export default function CrmErpPage() {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Loading milestone counts from CRM API...
-      </p>
+      <CorridorScopeBar
+        branchId={branchId}
+        salesManagerId={salesManagerId}
+        options={options}
+        onBranch={(next) => {
+          setPage(0);
+          setBranchId(next);
+        }}
+        onManager={(next) => {
+          setPage(0);
+          setSalesManagerId(next);
+        }}
+      />
 
-      {/* Summary Cards with Golden/Amber Borders */}
+      <CorridorBanner error={error || milestonesError} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Total Summary Card */}
-        <div className="bg-white dark:bg-[#0D1829] border-2 border-[#F59E0B] rounded-3xl p-6 shadow-xs relative">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-400 block mb-2">
+        <div className="bg-white dark:bg-[#0D1829] border-2 border-[#F59E0B] rounded-3xl p-6 shadow-xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-2">
             SUMMARY
           </span>
           <div className="flex items-baseline justify-between">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              Total
-            </h2>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Total</h2>
             <span className="font-mono text-3xl font-black text-slate-900 dark:text-white">
-              0
+              {milestonesLoading ? '—' : milestones?.totalCrmLeads ?? 0}
             </span>
           </div>
           <p className="text-[11px] text-right text-slate-400 mt-2 font-medium">
-            assigned - this month
+            created {month.dateFrom} → {month.dateTo}
           </p>
         </div>
-
-        {/* Verified Summary Card */}
-        <div className="bg-white dark:bg-[#0D1829] border-2 border-[#F59E0B] rounded-3xl p-6 shadow-xs relative">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-400 block mb-2">
-            SUMMARY
+        <div className="bg-white dark:bg-[#0D1829] border-2 border-[#F59E0B] rounded-3xl p-6 shadow-xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-2">
+            BOARD
           </span>
           <div className="flex items-baseline justify-between">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              Verified
-            </h2>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Leads</h2>
             <span className="font-mono text-3xl font-black text-slate-900 dark:text-white">
-              0
+              {loading ? '—' : total}
             </span>
           </div>
-          <p className="text-[11px] text-right text-slate-400 mt-2 font-medium">
-            verified - this month
-          </p>
+          <p className="text-[11px] text-right text-slate-400 mt-2 font-medium">read-only showcase</p>
         </div>
       </div>
 
-      {/* Journey Phases Collapsible Header Card */}
-      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-          Journey phases
-        </span>
-        <button className="text-xs font-bold text-amber-500 hover:text-amber-600">
-          Open
-        </button>
-      </div>
-
-      {/* Filter & Action Bar */}
-      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2">
-          {/* Filter 0 Button */}
-          <button className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <span>Filter</span>
-            <span className="text-slate-400 font-normal">0</span>
-          </button>
-
-          {/* Sort Button */}
-          <button className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-            <span>Sort</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Lead Types Button */}
-          <button className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            # Lead Types
-          </button>
-
-          {/* Total Leads Blue Pill */}
+      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Journey phases</span>
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-colors"
+            type="button"
+            onClick={() => setPhasesOpen((open) => !open)}
+            className="text-xs font-bold text-amber-500 hover:text-amber-600"
           >
-            <span>Total Leads</span>
-            <span className="px-1.5 py-0.5 bg-blue-700/80 rounded-md font-mono text-[11px]">
-              2,846
-            </span>
+            {phasesOpen ? 'Close' : 'Open'}
           </button>
         </div>
-      </div>
-
-      {/* Leads Data Table (Matches exact columns & cells from screenshot) */}
-      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-xs overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/40">
-              <th className="py-3.5 pl-4 w-10">
-                <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 text-blue-600" />
-              </th>
-              <th className="py-3.5">ENQUIRY DATE</th>
-              <th className="py-3.5">LEAD NAME</th>
-              <th className="py-3.5">STATUS</th>
-              <th className="py-3.5">JOURNEY TRACK</th>
-              <th className="py-3.5">OWNER</th>
-              <th className="py-3.5">ENGAGEMENT</th>
-              <th className="py-3.5">DUE DATE</th>
-              <th className="py-3.5 pr-4 text-center">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
-            {filteredLeads.map((lead) => (
-              <tr
-                key={lead.id}
-                className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
-              >
-                {/* Checkbox */}
-                <td className="py-4 pl-4">
-                  <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 text-blue-600" />
-                </td>
-
-                {/* Enquiry Date */}
-                <td className="py-4 text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
-                  {lead.enquiryDate}
-                </td>
-
-                {/* Lead Name & Subtext Badges */}
-                <td className="py-4">
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white text-sm block">
-                      {lead.leadName}
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-mono block mb-1.5">
-                      {lead.leadCode}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {lead.tags.map((t, idx) => (
-                        <span
-                          key={idx}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${t.bg} ${t.text}`}
-                        >
-                          {t.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </td>
-
-                {/* Status */}
-                <td className="py-4 text-slate-600 dark:text-slate-400 text-xs">
-                  {lead.status}
-                </td>
-
-                {/* Journey Track */}
-                <td className="py-4">
-                  <div>
-                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
-                      {lead.journeyTrack.label}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600 rounded-full"
-                          style={{
-                            width: `${(lead.journeyTrack.currentStep / lead.journeyTrack.totalSteps) * 100}%`
-                          }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {lead.journeyTrack.currentStep}/{lead.journeyTrack.totalSteps}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-
-                {/* Owner */}
-                <td className="py-4 text-slate-800 dark:text-slate-200 font-bold">
-                  {lead.owner}
-                </td>
-
-                {/* Engagement */}
-                <td className="py-4 text-slate-500 dark:text-slate-400 text-xs">
-                  <div>
-                    <p className="font-semibold text-slate-700 dark:text-slate-300">
-                      {lead.engagement.split(' ')[0]} {lead.engagement.split(' ')[1]} {lead.engagement.split(' ')[2]}
-                    </p>
-                    <p className="text-[10px] text-slate-400">Updated</p>
-                  </div>
-                </td>
-
-                {/* Due Date */}
-                <td className="py-4">
-                  <div>
-                    <p className="font-bold text-blue-600 dark:text-blue-400">{lead.dueDate}</p>
-                    <p className="text-[11px] text-slate-400">{lead.dueTime}</p>
-                  </div>
-                </td>
-
-                {/* Actions: Assign & Delete Buttons */}
-                <td className="py-4 pr-4">
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      onClick={() => alert(`Assigning lead ${lead.leadName} to team member...`)}
-                      className="w-20 py-1 rounded-md border border-blue-400 dark:border-blue-500 text-blue-600 dark:text-blue-400 text-[11px] font-bold hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors text-center"
-                    >
-                      Assign
-                    </button>
-                    <button
-                      onClick={() => deleteCrmLead(lead.id)}
-                      className="w-20 py-0.5 text-rose-500 hover:text-rose-600 text-[10px] font-semibold text-center hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create Lead Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-[#0D1829] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">Ingest New Lead Record</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-xs text-slate-400 font-bold">✕</button>
+        {phasesOpen &&
+          (milestonesLoading ? (
+            <CorridorSkeleton rows={2} />
+          ) : categories.length === 0 ? (
+            <p className="text-xs text-slate-400">No milestone counts for this window.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {categories.map((item) => (
+                <span
+                  key={milestoneLabel(item)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold ${heatmapTone(Number(item.count) || 0, maxCount)}`}
+                >
+                  {milestoneLabel(item)} · {item.count}
+                </span>
+              ))}
             </div>
-            <form onSubmit={handleCreateLead} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Lead Name / Customer</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Prestige Phase 2 High Intent Prospect"
-                  value={leadName}
-                  onChange={(e) => setLeadName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Lead Code</label>
-                <input
-                  type="text"
-                  required
-                  value={leadCode}
-                  onChange={(e) => setLeadCode(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Assign Owner</label>
-                <select
-                  value={owner}
-                  onChange={(e) => setOwner(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                >
-                  <option value="Alice">Alice</option>
-                  <option value="Rahul Sharma">Rahul Sharma</option>
-                  <option value="Sarah Jenkins">Sarah Jenkins</option>
-                  <option value="Marcus Wei">Marcus Wei</option>
-                </select>
-              </div>
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 font-semibold text-slate-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md"
-                >
-                  Save Lead
-                </button>
-              </div>
-            </form>
+          ))}
+      </div>
+
+      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+        <p className="text-xs text-slate-500">Live CRM leads. Assign and delete are disabled in Hallway.</p>
+        <span className="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold">
+          Total Leads {total}
+        </span>
+      </div>
+
+      <div className="bg-white dark:bg-[#0D1829] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-xs overflow-x-auto">
+        {loading ? (
+          <div className="p-6">
+            <CorridorSkeleton rows={8} />
           </div>
+        ) : (
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/40">
+                <th className="py-3.5 pl-4">Enquiry date</th>
+                <th className="py-3.5">Lead name</th>
+                <th className="py-3.5">Code</th>
+                <th className="py-3.5">Status</th>
+                <th className="py-3.5">Journey track</th>
+                <th className="py-3.5">Owner</th>
+                <th className="py-3.5">Engagement</th>
+                <th className="py-3.5 pr-4">Due</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
+              {leads.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-10">
+                    <EmptyState title="No leads yet" description="CRM returned no lead rows for this scope." />
+                  </td>
+                </tr>
+              ) : (
+                leads.map((lead) => {
+                  const track = lead.journeyTrack;
+                  const stepPct =
+                    track && track.totalSteps > 0
+                      ? (track.currentStep / track.totalSteps) * 100
+                      : 0;
+                  return (
+                    <tr
+                      key={lead.id}
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                    >
+                      <td className="py-4 pl-4 text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
+                        {lead.enquiryDate || '—'}
+                      </td>
+                      <td className="py-4">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm block">
+                          {lead.leadName}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          {(lead.tags || []).map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-4 font-mono text-slate-500">{lead.leadCode || '—'}</td>
+                      <td className="py-4 text-slate-600 dark:text-slate-400">{lead.status || '—'}</td>
+                      <td className="py-4">
+                        {track ? (
+                          <div>
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                              {track.label}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-blue-600 rounded-full"
+                                  style={{ width: progressWidth(stepPct) }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {track.currentStep}/{track.totalSteps}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="py-4 text-slate-800 dark:text-slate-200 font-bold">
+                        {lead.owner || '—'}
+                      </td>
+                      <td className="py-4 text-slate-500 dark:text-slate-400 text-xs">
+                        {lead.engagement || '—'}
+                      </td>
+                      <td className="py-4 pr-4">
+                        <p className="font-bold text-blue-600 dark:text-blue-400">{lead.dueDate || '—'}</p>
+                        {lead.dueTime && <p className="text-[11px] text-slate-400">{lead.dueTime}</p>}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <button
+            type="button"
+            disabled={page <= 0}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <span className="font-semibold text-slate-500">
+            Page {page + 1} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage((current) => current + 1)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
     </div>
+  );
+}
+
+export default function CrmErpPage() {
+  return (
+    <CorridorGate>
+      <CrmErpInner />
+    </CorridorGate>
   );
 }

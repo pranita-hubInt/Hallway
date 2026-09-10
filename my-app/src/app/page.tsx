@@ -47,7 +47,7 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
-            Oct 24, 2023
+            {new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
           <button
             onClick={() => setIsNewPostOpen(true)}
@@ -123,9 +123,9 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Load earlier updates button */}
             {filteredPosts.length > visibleCount && (
               <button
+                type="button"
                 onClick={() => setVisibleCount((prev) => prev + 3)}
                 className="w-full py-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-xs"
               >

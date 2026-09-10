@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Users, Calendar } from 'lucide-react';
 
 export default function WidgetLeadership() {
   return (
@@ -11,20 +10,7 @@ export default function WidgetLeadership() {
           LEADERSHIP BOARD
         </span>
       </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-extrabold text-[10px] border border-blue-500/30">
-            CEO
-          </span>
-          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-            Q2 Townhall Scheduled
-          </h4>
-        </div>
-        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-          Join us next Thursday at 10 AM EST for the quarterly review.
-        </p>
-      </div>
+      <p className="text-xs text-slate-400">No leadership updates yet.</p>
     </div>
   );
 }
