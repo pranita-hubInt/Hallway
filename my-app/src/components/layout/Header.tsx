@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Bell, X, Megaphone, Users, Award, Briefcase, ChevronRight, Sparkles, Sun, Moon, LogOut, LogIn } from 'lucide-react';
+import { Search, Bell, X, Megaphone, Users, Award, Briefcase, ChevronRight, Sparkles, Sun, Moon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { leaderboardMembersMock, individualRecordsMock } from '../../data/mockData';
 import LoginAuthIcon from '../common/LoginAuthIcon';
@@ -27,11 +28,9 @@ export default function Header() {
   } = useApp();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -49,14 +48,11 @@ export default function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Close search and user dropdown on click outside
+  // Close search dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setIsSearchFocused(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setIsUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -372,103 +368,14 @@ export default function Header() {
           )}
         </div>
 
-        {/* Login / User Auth Profile Button (Reference 4th image) */}
-        <div className="relative" ref={userMenuRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setIsUserMenuOpen(!isUserMenuOpen);
-              setIsNotifOpen(false);
-            }}
-            className="w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700/60 flex items-center justify-center cursor-pointer shadow-xs group relative overflow-hidden"
-            title={isAuthenticated ? `Logged in as ${currentUser.name}` : 'Login'}
-          >
-            <LoginAuthIcon size={22} className="transition-transform group-hover:scale-105" />
-          </button>
-
-          {/* User Profile & Auth Dropdown Popover */}
-          {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#0D1829] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3.5 z-50 animate-in fade-in duration-150 font-sans">
-              {isAuthenticated ? (
-                <div className="space-y-3">
-                  {/* User Profile Header */}
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="relative shrink-0">
-                      <img
-                        src={currentUser.avatar}
-                        alt={currentUser.name}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-sky-500/30"
-                      />
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                        {currentUser.name}
-                      </span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                          {currentUser.role}
-                        </span>
-                        <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>
-                        <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400">
-                          {currentUser.department}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Switch User Role */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchUser();
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Switch Role</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
-                      Cycle
-                    </span>
-                  </button>
-
-                  {/* Logout Button */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        logout();
-                        router.push('/login');
-                      }}
-                      className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-rose-200/60 dark:border-rose-800/60"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2 text-center py-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">You are currently not signed in.</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      router.push('/login');
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Log In</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Login / Auth Icon - directly redirects to /login */}
+        <Link
+          href="/login"
+          className="w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700/60 flex items-center justify-center cursor-pointer shadow-xs group relative overflow-hidden"
+          title="Login to HUB"
+        >
+          <LoginAuthIcon size={22} className="transition-transform group-hover:scale-105" />
+        </Link>
       </div>
     </header>
   );
