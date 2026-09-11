@@ -39,7 +39,14 @@ interface AppContextType {
   ) => Promise<void>;
   likeComment: (postId: string, commentId: string) => void;
   refreshFeed: () => Promise<void>;
-  addNewPost: (title: string, content: string, type: FeedPost['type'], department?: FeedPost['department']) => Promise<void>;
+  addNewPost: (
+    title: string,
+    content: string,
+    type?: FeedPost['type'],
+    department?: FeedPost['department'],
+    quotaProgress?: FeedPost['quotaProgress'],
+    author?: { name: string; avatar: string; team: string }
+  ) => Promise<FeedPost | null>;
   actionItems: ActionItem[];
   toggleActionItem: (groupId: string, itemId: string) => void;
   crmLeads: CrmLeadItem[];
@@ -58,7 +65,7 @@ interface AppContextType {
   setActiveLeaderboardView: (v: 'Individual' | 'Team') => void;
 }
 
-const HALLWAY_LOCAL_API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const HALLWAY_LOCAL_API = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -267,15 +274,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addNewPost = async (
     title: string,
     content: string,
-    type: FeedPost['type'],
-    department: FeedPost['department'] = 'Sales'
-  ) => {
-    const colors = {
+    type: FeedPost['type'] = 'announcement',
+    department: FeedPost['department'] = 'Sales',
+    quotaProgress?: FeedPost['quotaProgress'],
+    customAuthor?: { name: string; avatar: string; team: string }
+  ): Promise<FeedPost | null> => {
+    const colors: Record<string, string> = {
       booking: '#10B981',
       quota: '#8B5CF6',
       performer: '#F59E0B',
       announcement: '#EF4444',
       general: '#3B82F6'
+    };
+
+    const author = customAuthor || {
+      name: currentUser.name,
+      avatar: currentUser.avatar,
+      team: currentUser.department + ' Hub'
     };
 
     const newPost: FeedPost = {
@@ -284,12 +299,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       categoryColor: colors[type] || '#3B82F6',
       title: title.trim(),
       timestamp: 'Just Now',
-      author: {
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        team: currentUser.department + ' Hub'
-      },
+      author,
       content: content.trim(),
+      quotaProgress: quotaProgress || undefined,
       reactions: {
         thumbsUp: 1,
         clap: 1,
@@ -303,28 +315,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       department
     };
 
+    // Optimistically prepend to UI
     setFeedPosts((prev) => [newPost, ...prev]);
 
-    if (!HALLWAY_LOCAL_API) return;
+    const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
-      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements`, {
+      const res = await fetch(`${apiUrl}/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          content,
+          title: title.trim(),
+          content: content.trim(),
           type,
           department,
-          author: newPost.author
+          author,
+          quotaProgress: quotaProgress || null
         })
       });
       if (res.ok) {
-        const created = await res.json();
+        const created: FeedPost = await res.json();
         setFeedPosts((prev) => [created, ...prev.filter((p) => p.id !== newPost.id)]);
+        return created;
       }
-    } catch {
-      // Offline fallback preserved
+    } catch (err) {
+      console.error('Failed to post announcement to server:', err);
     }
+    return newPost;
   };
 
   const toggleActionItem = (groupId: string, itemId: string) => {

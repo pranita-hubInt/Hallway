@@ -7,7 +7,7 @@ const DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306', 10),
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'root@00',
+  password: process.env.DB_PASSWORD || 'Root@123',
   database: process.env.DB_NAME || 'hallway_db',
   waitForConnections: true,
   connectionLimit: 10,
@@ -230,23 +230,26 @@ async function createAnnouncement(data) {
 
   const id = 'post-' + Date.now();
   const reactions = { thumbsUp: 1, clap: 1, heart: 1, userThumbsUp: true, userClap: false, userHeart: false };
+  const quotaProgressJson = data.quotaProgress ? JSON.stringify(data.quotaProgress) : null;
+  const type = data.type || 'announcement';
 
   await pool.query(
     `INSERT INTO announcements (
       id, type, category_color, title, timestamp_text,
       author_name, author_avatar, author_team,
-      content, reactions, comments_count, department
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      content, quota_progress, reactions, comments_count, department
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      data.type || 'announcement',
-      colors[data.type] || '#3B82F6',
+      type,
+      data.categoryColor || colors[type] || '#3B82F6',
       data.title.trim(),
       'Just Now',
-      data.author?.name || 'Ranjith',
+      data.author?.name || 'Leadership',
       data.author?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      data.author?.team || (data.department || 'Sales') + ' Hub',
+      data.author?.team || (data.department || 'HQ') + ' Hub',
       data.content.trim(),
+      quotaProgressJson,
       JSON.stringify(reactions),
       0,
       data.department || 'Sales'

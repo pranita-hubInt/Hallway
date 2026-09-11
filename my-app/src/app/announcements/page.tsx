@@ -1,15 +1,27 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Megaphone, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Megaphone, Plus, Radio, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import FeedCard from '../../components/home/FeedCard';
 import NewPostModal from '../../components/home/NewPostModal';
 
 export default function AnnouncementsPage() {
-  const { feedPosts, searchQuery, setSearchQuery } = useApp();
+  const { feedPosts, searchQuery, setSearchQuery, refreshFeed } = useApp();
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<'ALL' | 'ANNOUNCEMENTS' | 'PERFORMERS'>('ALL');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    refreshFeed();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshFeed();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   // Filter posts
   const filteredAnnouncements = feedPosts.filter((post) => {
@@ -45,6 +57,22 @@ export default function AnnouncementsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            title="Refresh announcements from database"
+            className="p-2 bg-white dark:bg-[#0D1829] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-rose-600 rounded-xl transition-all shadow-xs"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-rose-600' : ''}`} />
+          </button>
+
+          <Link
+            href="/announcements/broadcast"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-[#0D1829] border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition-all shadow-xs"
+          >
+            <Radio className="w-3.5 h-3.5 text-rose-500" />
+            <span>Broadcast Page</span>
+          </Link>
+
           <button
             onClick={() => setIsNewPostOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-rose-900/20"
@@ -110,4 +138,3 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
-

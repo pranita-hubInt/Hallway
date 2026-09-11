@@ -340,7 +340,6 @@ export default function Header() {
             type="button"
             onClick={() => {
               setIsNotifOpen(!isNotifOpen);
-              setIsUserMenuOpen(false);
               if (notificationsCount > 0) clearNotifications();
             }}
             className="w-9 h-9 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors relative border border-slate-200 dark:border-slate-700/60 flex items-center justify-center cursor-pointer shadow-xs"
