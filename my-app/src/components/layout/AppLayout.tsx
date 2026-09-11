@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -8,10 +8,22 @@ import { useApp } from '../../context/AppContext';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { sidebarCollapsed, isAuthenticated } = useApp();
+  const { isAuthenticated, login } = useApp();
 
-  if (pathname === '/login' || !isAuthenticated) {
-    return <main className="min-h-screen bg-slate-50 dark:bg-[#060B13] text-slate-900 dark:text-slate-100">{children}</main>;
+  // If user navigates back to any app page while unauthenticated, automatically restore session
+  useEffect(() => {
+    if (pathname !== '/login' && !isAuthenticated) {
+      login();
+    }
+  }, [pathname, isAuthenticated, login]);
+
+  // Only the dedicated /login route renders without the app layout
+  if (pathname === '/login') {
+    return (
+      <main className="min-h-screen bg-slate-50 dark:bg-[#060B13] text-slate-900 dark:text-slate-100 font-sans">
+        {children}
+      </main>
+    );
   }
 
   return (
