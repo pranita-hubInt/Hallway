@@ -372,7 +372,7 @@ export default function Header() {
         <Link
           href="/login"
           className="w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700/60 flex items-center justify-center cursor-pointer shadow-xs group relative overflow-hidden"
-          title="Sign in to Hallway"
+          title="Login to HUB"
         >
           <LoginAuthIcon size={22} className="transition-transform group-hover:scale-105" />
         </Link>
