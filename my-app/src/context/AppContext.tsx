@@ -17,6 +17,7 @@ import {
   crmLeadsMock,
   designProjectsMock
 } from '../data/mockData';
+import { getStoredCrmUser, fetchFeed, fetchTargets } from '../lib/crmApi';
 
 interface AppContextType {
   currentUser: User;
@@ -67,6 +68,35 @@ interface AppContextType {
 
 const HALLWAY_LOCAL_API = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 
+function formatBranchName(raw?: string): string {
+  if (!raw) return 'Hub Sales';
+  const clean = raw.trim().toUpperCase();
+  if (clean === 'JP_NAGAR' || clean === 'JP NAGAR') return 'JP Nagar Hub';
+  if (clean === 'SARJAPURA' || clean === 'SARJAPUR') return 'Sarjapura Hub';
+  if (clean === 'HBR' || clean === 'HBR_LAYOUT') return 'HBR Layout Hub';
+  return `${raw} Hub`;
+}
+
+const BRANCH_TARGET_CONFIGS = [
+  { id: 'JP_NAGAR', name: 'JP Nagar', team: 'JP Nagar Hub' },
+  { id: 'SARJAPURA', name: 'Sarjapura', team: 'Sarjapura Hub' },
+  { id: 'HBR', name: 'HBR Layout', team: 'HBR Layout Hub' },
+];
+
+function resolveCrmAvatar(name?: string): string {
+  if (!name) return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+  const lower = name.toLowerCase();
+  if (lower.includes('meghana')) return 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('shaddisha')) return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('aman')) return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('sharanya')) return 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('danush')) return 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('jayashree')) return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('somashekar')) return 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80';
+  if (lower.includes('bilal')) return 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80';
+  return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -101,24 +131,222 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Fetch announcements from Express backend
+  // Sync active logged-in user if available from CRM session
+  useEffect(() => {
+    const storedUser = getStoredCrmUser();
+    if (storedUser?.username) {
+      setCurrentUser((prev) => ({
+        ...prev,
+        name: storedUser.username === 'admin' ? 'Super Admin' : storedUser.username,
+        role: storedUser.role || prev.role,
+        department: (storedUser.branch as any) || prev.department,
+      }));
+    }
+  }, []);
+
+  // Fetch announcements and live CRM targets / bookings
   const refreshFeed = async () => {
-    if (!HALLWAY_LOCAL_API) return;
     try {
-      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setFeedPosts(data);
+      const apiUrl = HALLWAY_LOCAL_API || '/api';
+      const announcementsPromise = fetch(`${apiUrl}/announcements`)
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null);
+
+      const crmFeedPromise = fetchFeed('', { limit: 15 })
+        .then((res) => res?.feed || [])
+        .catch(() => []);
+
+      const crmTargetsPromise = fetchTargets('', {})
+        .then((res) => res?.cards || [])
+        .catch(() => []);
+
+      const branchTargetPromises = BRANCH_TARGET_CONFIGS.map(async (b) => {
+        try {
+          const res = await fetchTargets('', { branchId: b.id });
+          return (res?.cards || []).map((card) => ({
+            ...card,
+            branchId: b.id,
+            branchName: b.name,
+            team: b.team,
+          }));
+        } catch {
+          return [];
+        }
+      });
+
+      const [announcementsData, crmItems, overallTargetsData, ...branchTargetsArrays] = await Promise.all([
+        announcementsPromise,
+        crmFeedPromise,
+        crmTargetsPromise,
+        ...branchTargetPromises,
+      ]);
+
+      const allTargets: any[] = [];
+      // 1. Add overall company-wide target FIRST so it appears at the top of the list
+      if (Array.isArray(overallTargetsData)) {
+        for (const card of overallTargetsData) {
+          allTargets.push({
+            ...card,
+            branchId: 'all',
+            branchName: 'All Hubs (Overall)',
+            team: 'Operations HQ',
+          });
         }
       }
+      // 2. Add branch-wise targets (JP Nagar, Sarjapura, HBR)
+      for (const list of branchTargetsArrays) {
+        if (Array.isArray(list)) allTargets.push(...list);
+      }
+
+      const announcementsMap = new Map<string, FeedPost>();
+      if (Array.isArray(announcementsData)) {
+        for (const a of announcementsData) {
+          if (a?.id) announcementsMap.set(a.id, a);
+        }
+      }
+
+      const combined: FeedPost[] = [];
+      const seenIds = new Set<string>();
+
+      // 1. Live Target Pacing from CRM (Branch-wise: JP Nagar, Sarjapura, HBR & Overall)
+      if (Array.isArray(allTargets) && allTargets.length > 0) {
+        for (const target of allTargets) {
+          const id = `crm-target-${target.branchId || 'overall'}-${target.yearMonth || 'current'}`;
+          const existing = announcementsMap.get(id);
+          const branchPrefix = target.branchName ? `${target.branchName}: ` : '';
+          const title = `${branchPrefix}${target.title}: ${target.current} achieved (${target.progress}%)`;
+          const content =
+            target.branchName && target.branchId !== 'all'
+              ? `${target.branchName} Hub monthly gross booking pacing is at ${target.current} towards the ${target.target} branch target (${target.progress}% achieved). Synced directly from CRM ${target.targetSource || 'sales_targets'}.`
+              : `Monthly gross booking pacing across all corridors is at ${target.current} towards the ${target.target} target (${target.progress}% achieved). Synced directly from CRM ${target.targetSource || 'sales_targets'}.`;
+
+          combined.push({
+            id,
+            type: 'quota',
+            categoryColor: '#8B5CF6',
+            title,
+            timestamp: 'Live Pacing',
+            createdAt: new Date().toISOString(),
+            author: {
+              name:
+                target.branchName && target.branchId !== 'all'
+                  ? `${target.branchName} Operations`
+                  : 'Hub Operations',
+              avatar:
+                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+              team: target.team || 'Operations HQ',
+            },
+            content,
+            quotaProgress: {
+              current: target.currentInr || target.progress,
+              target: target.targetInr || 100,
+              label: target.branchName ? `${target.branchName} Target` : target.title,
+              percentage: target.progress,
+              currentFormatted: target.current,
+              targetFormatted: target.target,
+            },
+            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0 },
+            commentsCount: existing?.commentsCount || 0,
+            comments: existing?.comments || [],
+            department: 'Sales',
+          });
+          seenIds.add(id);
+        }
+      }
+
+      // 2. Real Live CRM Closed Deal Bookings from booking_token_record (excluding tokens)
+      if (Array.isArray(crmItems) && crmItems.length > 0) {
+        for (const item of crmItems) {
+          // Exclude tokens: only closed deal bookings should appear in the feed
+          if (
+            item.type === 'token' ||
+            item.id?.startsWith('token-') ||
+            item.title?.toLowerCase().includes('token')
+          ) {
+            continue;
+          }
+
+          const id = `crm-${item.id}`;
+          if (seenIds.has(id)) continue;
+          const existing = announcementsMap.get(id);
+
+          const authorName = item.author?.name || 'Sales Executive';
+          const authorTeam = formatBranchName(item.author?.team);
+          const avatar = item.author?.avatar || resolveCrmAvatar(authorName);
+
+          combined.push({
+            id,
+            type: item.type === 'quota' ? 'quota' : item.type === 'performer' ? 'performer' : 'booking',
+            categoryColor:
+              item.type === 'quota'
+                ? '#8B5CF6'
+                : item.type === 'performer'
+                ? '#F59E0B'
+                : '#10B981',
+            title: item.title ? item.title.replace(/^New booking/i, 'Gross booking') : item.title,
+            timestamp: item.timestamp || 'Recent deal',
+            createdAt: item.createdAt || new Date().toISOString(),
+            author: {
+              name: authorName,
+              avatar,
+              team: authorTeam,
+            },
+            content: item.content,
+            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0 },
+            commentsCount: existing?.commentsCount || 0,
+            comments: existing?.comments || [],
+            department: (item.department as any) || 'Sales',
+          });
+          seenIds.add(id);
+        }
+      }
+
+      // 3. User Broadcast Announcements (manual announcements, excluding any legacy tokens or meetings)
+      if (Array.isArray(announcementsData)) {
+        for (const post of announcementsData) {
+          if (!seenIds.has(post.id)) {
+            if (
+              post.id?.startsWith('crm-token-') ||
+              post.id?.startsWith('crm-event-') ||
+              post.title?.toLowerCase().startsWith('new token') ||
+              post.title?.toLowerCase().includes('client consultation') ||
+              post.title?.toLowerCase().includes('virtual meeting') ||
+              post.title?.toLowerCase().includes('showroom visit')
+            ) {
+              continue;
+            }
+            combined.push(post);
+            seenIds.add(post.id);
+          }
+        }
+      }
+
+      setFeedPosts(combined);
     } catch {
-      // Optional local announcements server is not running.
+      // Offline fallback preserved in state
     }
   };
 
+  // Initial load, periodic background polling (every 25s), and tab focus re-sync
   useEffect(() => {
-    refreshFeed();
+    void refreshFeed();
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void refreshFeed();
+      }
+    }, 25000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshFeed();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const toggleTheme = () => {

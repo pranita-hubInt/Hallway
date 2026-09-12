@@ -21,3 +21,22 @@ export function progressWidth(value: number | null | undefined): string {
   if (value == null || Number.isNaN(Number(value))) return '0%';
   return `${Math.max(0, Math.min(100, Number(value)))}%`;
 }
+
+export function formatRelativeTime(dateInput?: string | Date | null): string {
+  if (!dateInput) return 'Just now';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) {
+    return typeof dateInput === 'string' ? dateInput : 'Just now';
+  }
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 0 || diffMs < 45_000) return 'Just now';
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+}
+

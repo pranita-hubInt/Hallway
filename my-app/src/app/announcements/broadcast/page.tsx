@@ -11,7 +11,6 @@ import {
   Building2,
   UserCheck,
   CheckCircle2,
-  TrendingUp,
   Award,
   DollarSign,
   Info,
@@ -30,9 +29,6 @@ export default function BroadcastPage() {
   const [department, setDepartment] = useState<string>(currentUser.department || 'Sales');
   const [authorName, setAuthorName] = useState(currentUser.name || 'Leadership Office');
   const [authorTeam, setAuthorTeam] = useState(`${currentUser.department || 'HQ'} Hub`);
-  const [quotaTarget, setQuotaTarget] = useState<number>(100);
-  const [quotaCurrent, setQuotaCurrent] = useState<number>(75);
-  const [quotaLabel, setQuotaLabel] = useState('Monthly Quota Target');
   const [isPublishing, setIsPublishing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -42,18 +38,6 @@ export default function BroadcastPage() {
       label: '📢 Corridor Broadcast',
       color: '#EF4444',
       desc: 'Official company-wide announcements, leadership memos, and townhall notices.'
-    },
-    {
-      id: 'booking',
-      label: '🟢 Deal Booking',
-      color: '#10B981',
-      desc: 'Significant customer deal closures, contract milestones, and enterprise handoffs.'
-    },
-    {
-      id: 'quota',
-      label: '🟣 Quota Milestone',
-      color: '#8B5CF6',
-      desc: 'Branch or squad quota pacing achievements and target progress.'
     },
     {
       id: 'performer',
@@ -77,19 +61,12 @@ export default function BroadcastPage() {
 
     setIsPublishing(true);
     try {
-      const quotaProgress = type === 'quota' ? {
-        current: Number(quotaCurrent),
-        target: Number(quotaTarget),
-        label: quotaLabel.trim() || 'Quota Milestone',
-        percentage: Math.min(100, Math.round((Number(quotaCurrent) / (Number(quotaTarget) || 1)) * 100))
-      } : undefined;
-
       const created = await addNewPost(
         title.trim(),
         content.trim(),
         type,
         department as any,
-        quotaProgress,
+        undefined,
         {
           name: authorName.trim() || currentUser.name,
           avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
@@ -131,7 +108,7 @@ export default function BroadcastPage() {
                 Publish Corridor Broadcast
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                Compose news, deal celebrations, quota milestones, and official executive announcements.
+                Compose news, team shoutouts, quota milestones, and official executive announcements.
               </p>
             </div>
           </div>
@@ -238,52 +215,6 @@ export default function BroadcastPage() {
               </div>
             </div>
 
-            {/* Quota Progress Fields if Quota selected */}
-            {type === 'quota' && (
-              <div className="p-4 bg-violet-50/70 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900/50 rounded-xl space-y-3">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800 dark:text-violet-300">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>Milestone Progress Metrics</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-1">
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                      Label
-                    </label>
-                    <input
-                      type="text"
-                      value={quotaLabel}
-                      onChange={(e) => setQuotaLabel(e.target.value)}
-                      placeholder="e.g. Monthly Quota"
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                      Current Value
-                    </label>
-                    <input
-                      type="number"
-                      value={quotaCurrent}
-                      onChange={(e) => setQuotaCurrent(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                      Target Value
-                    </label>
-                    <input
-                      type="number"
-                      value={quotaTarget}
-                      onChange={(e) => setQuotaTarget(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Content Textarea */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
@@ -369,30 +300,6 @@ export default function BroadcastPage() {
                 {title || 'Headline Title will appear here...'}
               </h3>
             </div>
-
-            {/* Quota Progress Bar preview */}
-            {type === 'quota' && (
-              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/70 dark:border-slate-800/80 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-bold">
-                  <span className="text-slate-600 dark:text-slate-400">{quotaLabel || 'Quota Progress'}</span>
-                  <span className="text-violet-600 dark:text-violet-400">
-                    {Math.min(100, Math.round((Number(quotaCurrent) / (Number(quotaTarget) || 1)) * 100))}%
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-violet-600 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(100, Math.round((Number(quotaCurrent) / (Number(quotaTarget) || 1)) * 100))}%`
-                    }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-400">
-                  <span>Current: {quotaCurrent}</span>
-                  <span>Target: {quotaTarget}</span>
-                </div>
-              </div>
-            )}
 
             {/* Content Body */}
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

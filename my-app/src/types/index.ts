@@ -28,6 +28,7 @@ export interface FeedPost {
   categoryColor: string;
   title: string;
   timestamp: string;
+  createdAt?: string;
   author?: {
     name: string;
     avatar: string;
@@ -39,6 +40,8 @@ export interface FeedPost {
     target: number;
     label: string;
     percentage: number;
+    currentFormatted?: string;
+    targetFormatted?: string;
   };
   reactions: {
     thumbsUp: number;

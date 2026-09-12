@@ -42,7 +42,11 @@ export function CorridorScopeBar({
   onManager?: (salesManagerId?: number) => void;
   showManager?: boolean;
 }) {
-  const branches = options?.branches || [];
+  const branches = (options?.branches || []).filter(
+    (branch) =>
+      branch.id?.trim().toUpperCase() !== 'SARJAPUR' &&
+      branch.name?.trim().toUpperCase() !== 'SARJAPUR'
+  );
   const managers = options?.salesManagers || [];
 
   return (

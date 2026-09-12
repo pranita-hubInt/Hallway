@@ -50,7 +50,7 @@ function PeopleInner() {
             People & Operating Directory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Live Hub directory. Revenue and conversion are YTD values from CRM.
+            Live Hub directory. Gross bookings and conversion are YTD values from CRM.
           </p>
         </div>
         <div className="relative w-full sm:w-64">

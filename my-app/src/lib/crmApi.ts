@@ -207,11 +207,19 @@ export async function fetchInsightsFilterOptions(
   signal?: AbortSignal
 ): Promise<InsightsFilterOptions> {
   const qs = branchId && branchId !== 'all' ? `?branchId=${encodeURIComponent(branchId)}` : '';
-  return crmFetch<InsightsFilterOptions>(
+  const data = await crmFetch<InsightsFilterOptions>(
     `/v1/crm/insights/filter-options${qs}`,
     { signal },
     token
   );
+  if (data?.branches && Array.isArray(data.branches)) {
+    data.branches = data.branches.filter(
+      (b) =>
+        b.id?.trim().toUpperCase() !== 'SARJAPUR' &&
+        b.name?.trim().toUpperCase() !== 'SARJAPUR'
+    );
+  }
+  return data;
 }
 
 export async function fetchInsightsDashboard(

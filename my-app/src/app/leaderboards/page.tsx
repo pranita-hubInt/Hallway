@@ -66,7 +66,7 @@ function LeaderboardsInner() {
             Performance Leaderboards
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Hub booking revenue and conversion as returned by CRM. Metrics are not recomputed here.
+            Hub gross bookings and conversion as returned by CRM. Metrics are not recomputed here.
           </p>
         </div>
         <div className="relative w-full md:w-64">
@@ -101,7 +101,7 @@ function LeaderboardsInner() {
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Top performers by total booking revenue and conversion efficiency.
+              Top performers by gross bookings and conversion efficiency.
             </p>
           </div>
 
@@ -165,7 +165,7 @@ function LeaderboardsInner() {
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     <th className="pb-3 pl-2">Rank</th>
                     <th className="pb-3">Member</th>
-                    <th className="pb-3 text-right">Revenue</th>
+                    <th className="pb-3 text-right">Gross Bookings</th>
                     <th className="pb-3 text-center">Bookings</th>
                     <th className="pb-3 pr-2 text-right">Conversion %</th>
                   </tr>
@@ -258,7 +258,7 @@ function LeaderboardsInner() {
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="pb-3 pl-2">Rank</th>
                   <th className="pb-3">Squad / Team</th>
-                  <th className="pb-3 text-right">Revenue</th>
+                  <th className="pb-3 text-right">Gross Bookings</th>
                   <th className="pb-3 text-center">Deals Closed</th>
                   <th className="pb-3 pr-2 text-right">Win Rate</th>
                 </tr>

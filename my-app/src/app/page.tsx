@@ -12,15 +12,16 @@ import NewPostModal from '../components/home/NewPostModal';
 
 export default function HomePage() {
   const { currentUser, feedPosts, searchQuery } = useApp();
-  const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'BOOKINGS' | 'QUOTAS' | 'PERFORMERS'>('ALL');
+  const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'ANNOUNCEMENTS' | 'BOOKINGS' | 'TARGETS' | 'PERFORMERS'>('ALL');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(4);
 
   // Filter posts
   const filteredPosts = feedPosts.filter((post) => {
+    if (selectedFilter === 'ANNOUNCEMENTS' && post.type !== 'announcement') return false;
     if (selectedFilter === 'BOOKINGS' && post.type !== 'booking') return false;
-    if (selectedFilter === 'QUOTAS' && post.type !== 'quota') return false;
+    if (selectedFilter === 'TARGETS' && post.type !== 'quota') return false;
     if (selectedFilter === 'PERFORMERS' && post.type !== 'performer') return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -79,16 +80,28 @@ export default function HomePage() {
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase tracking-wider"
               >
                 <Filter className="w-3 h-3" />
-                <span>FILTER {selectedFilter !== 'ALL' ? `(${selectedFilter})` : ''}</span>
+                <span>
+                  FILTER{' '}
+                  {selectedFilter === 'ANNOUNCEMENTS'
+                    ? '(ANNOUNCEMENTS)'
+                    : selectedFilter === 'BOOKINGS'
+                    ? '(GROSS BOOKINGS)'
+                    : selectedFilter === 'TARGETS'
+                    ? '(TARGETS)'
+                    : selectedFilter === 'PERFORMERS'
+                    ? '(PERFORMERS)'
+                    : ''}
+                </span>
                 <ChevronDown className="w-3 h-3" />
               </button>
 
               {isFilterOpen && (
-                <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-1.5 z-20 text-xs animate-in fade-in duration-100">
+                <div className="absolute right-0 mt-1.5 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-1.5 z-20 text-xs animate-in fade-in duration-100">
                   {[
                     { id: 'ALL', label: 'All Updates' },
-                    { id: 'BOOKINGS', label: '🟢 Deal Bookings' },
-                    { id: 'QUOTAS', label: '🟣 Quota Milestones' },
+                    { id: 'ANNOUNCEMENTS', label: '📢 Announcements' },
+                    { id: 'BOOKINGS', label: '🟢 Gross Bookings' },
+                    { id: 'TARGETS', label: '🟣 Branch Targets' },
                     { id: 'PERFORMERS', label: '🟡 Top Performers' },
                   ].map((f) => (
                     <button
