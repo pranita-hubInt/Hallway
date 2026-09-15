@@ -1,6 +1,7 @@
 const DEFAULT_CRM = 'http://127.0.0.1:8081';
-const UPSTREAM_MS = 60_000;
+const UPSTREAM_MS = 120_000;
 const LOGIN_MS = 8_000;
+const CACHE_TTL_MS = 60_000;
 
 const CRM_BASE = (
   process.env.CRM_API_PROXY_TARGET ||
@@ -14,6 +15,7 @@ let cachedToken: string | null = null;
 let tokenInflight: Promise<string> | null = null;
 type UpstreamPayload = { status: number; contentType: string | null; body: ArrayBuffer };
 const getInflight = new Map<string, Promise<UpstreamPayload>>();
+const getCache = new Map<string, { expiresAt: number; payload: UpstreamPayload }>();
 
 function showcaseToken() {
   const userId = (process.env.CRM_SHOWCASE_USER_ID || '1').trim() || '1';
@@ -205,6 +207,14 @@ export async function proxyToCrm(request: Request, pathParts: string[]): Promise
   const hasBody = method !== 'GET' && method !== 'HEAD';
   const body = hasBody ? await request.clone().arrayBuffer() : undefined;
   const key = `${method}:${path}${incoming.search}`;
+  const now = Date.now();
+
+  if (method === 'GET') {
+    const cached = getCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return toResponse(cached.payload.status, cached.payload.contentType, cached.payload.body);
+    }
+  }
 
   try {
     const out =
@@ -213,6 +223,9 @@ export async function proxyToCrm(request: Request, pathParts: string[]): Promise
         : await fetchWithFallback(path, incoming.search, method, body);
     if (out.status >= 500 || isMissingHallwayApi(out.status, out.body)) {
       return Response.json({ error: hubErrorMessage(out.body) }, { status: 503 });
+    }
+    if (method === 'GET' && out.status === 200) {
+      getCache.set(key, { expiresAt: now + CACHE_TTL_MS, payload: out });
     }
     return toResponse(out.status, out.contentType, out.body);
   } catch (err) {
