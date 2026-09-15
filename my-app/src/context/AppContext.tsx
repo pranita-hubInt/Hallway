@@ -255,10 +255,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const combined: FeedPost[] = [];
       const seenIds = new Set<string>();
 
-      // 1. Live Target Pacing from CRM (Branch-wise: JP Nagar, Sarjapura, HBR & Overall)
+      // 1. User Broadcast Announcements (official corridor broadcasts, announcements, performer recognitions)
+      // Placed FIRST so newly broadcasted posts always appear at the very top of the feed and announcements timeline
+      const broadcastPosts: FeedPost[] = [];
+      if (Array.isArray(announcementsData)) {
+        for (const post of announcementsData) {
+          if (!seenIds.has(post.id)) {
+            if (
+              post.id?.startsWith('crm-token-') ||
+              post.id?.startsWith('crm-event-') ||
+              post.title?.toLowerCase().startsWith('new token') ||
+              post.title?.toLowerCase().includes('client consultation') ||
+              post.title?.toLowerCase().includes('virtual meeting') ||
+              post.title?.toLowerCase().includes('showroom visit')
+            ) {
+              continue;
+            }
+            broadcastPosts.push(post);
+            seenIds.add(post.id);
+          }
+        }
+      }
+
+      // Sort broadcast announcements strictly newest first
+      broadcastPosts.sort((a, b) => {
+        const getTime = (p: FeedPost) => {
+          if (p.createdAt) {
+            const t = new Date(p.createdAt).getTime();
+            if (!isNaN(t)) return t;
+          }
+          if (p.id?.startsWith('post-')) {
+            const num = Number(p.id.replace('post-', ''));
+            if (!isNaN(num)) return num;
+          }
+          return 0;
+        };
+        return getTime(b) - getTime(a);
+      });
+
+      combined.push(...broadcastPosts);
+
+      // 2. Live Target Pacing from CRM (Branch-wise: JP Nagar, Sarjapura, HBR & Overall)
       if (Array.isArray(allTargets) && allTargets.length > 0) {
         for (const target of allTargets) {
           const id = `crm-target-${target.branchId || 'overall'}-${target.yearMonth || 'current'}`;
+          if (seenIds.has(id)) continue;
           const existing = announcementsMap.get(id);
           const branchPrefix = target.branchName ? `${target.branchName}: ` : '';
           const title = `${branchPrefix}${target.title}: ${target.current} achieved (${target.progress}%)`;
@@ -301,7 +342,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 2. Real Live CRM Closed Deal Bookings from booking_token_record (excluding tokens)
+      // 3. Real Live CRM Closed Deal Bookings from booking_token_record (excluding tokens)
       if (Array.isArray(crmItems) && crmItems.length > 0) {
         for (const item of crmItems) {
           // Exclude tokens: only closed deal bookings should appear in the feed
@@ -345,26 +386,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             department: (item.department as any) || 'Sales',
           });
           seenIds.add(id);
-        }
-      }
-
-      // 3. User Broadcast Announcements (manual announcements, excluding any legacy tokens or meetings)
-      if (Array.isArray(announcementsData)) {
-        for (const post of announcementsData) {
-          if (!seenIds.has(post.id)) {
-            if (
-              post.id?.startsWith('crm-token-') ||
-              post.id?.startsWith('crm-event-') ||
-              post.title?.toLowerCase().startsWith('new token') ||
-              post.title?.toLowerCase().includes('client consultation') ||
-              post.title?.toLowerCase().includes('virtual meeting') ||
-              post.title?.toLowerCase().includes('showroom visit')
-            ) {
-              continue;
-            }
-            combined.push(post);
-            seenIds.add(post.id);
-          }
         }
       }
 
@@ -569,12 +590,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       team: currentUser.department + ' Hub'
     };
 
+    const nowIso = new Date().toISOString();
+
     const newPost: FeedPost = {
       id: 'post-' + Date.now(),
       type,
       categoryColor: colors[type] || '#3B82F6',
       title: title.trim(),
       timestamp: 'Just Now',
+      createdAt: nowIso,
       author,
       content: content.trim(),
       quotaProgress: quotaProgress || undefined,
@@ -592,7 +616,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Optimistically prepend to UI
-    setFeedPosts((prev) => [newPost, ...prev]);
+    setFeedPosts((prev) => [newPost, ...prev.filter((p) => p.id !== newPost.id)]);
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
@@ -610,8 +634,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       if (res.ok) {
         const created: FeedPost = await res.json();
-        setFeedPosts((prev) => [created, ...prev.filter((p) => p.id !== newPost.id)]);
-        return created;
+        const postWithDate: FeedPost = {
+          ...created,
+          createdAt: created.createdAt || nowIso
+        };
+        setFeedPosts((prev) => [postWithDate, ...prev.filter((p) => p.id !== newPost.id && p.id !== created.id)]);
+        return postWithDate;
       }
     } catch (err) {
       console.error('Failed to post announcement to server:', err);

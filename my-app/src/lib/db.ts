@@ -110,7 +110,7 @@ export async function getAnnouncements() {
     try {
       const pool = getPool();
       const [rows] = await pool.query<any[]>(
-        'SELECT * FROM announcements ORDER BY created_at DESC'
+        'SELECT * FROM announcements ORDER BY created_at DESC, id DESC'
       );
 
       const announcements = [];
@@ -136,7 +136,7 @@ export async function getAnnouncements() {
           categoryColor: row.category_color || CATEGORY_COLORS[row.type] || '#3B82F6',
           title: row.title,
           timestamp: row.timestamp_text || 'Just Now',
-          createdAt: row.created_at,
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
           author: {
             name: row.author_name || 'Leadership',
             avatar: row.author_avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
@@ -170,7 +170,21 @@ export async function getAnnouncements() {
   }
 
   // Fallback: Read from persistent JSON storage
-  return getJsonAnnouncements();
+  const list = getJsonAnnouncements();
+  return list.sort((a, b) => {
+    const getTime = (p: any) => {
+      if (p.createdAt) {
+        const t = new Date(p.createdAt).getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (p.id && String(p.id).startsWith('post-')) {
+        const num = Number(String(p.id).replace('post-', ''));
+        if (!isNaN(num)) return num;
+      }
+      return 0;
+    };
+    return getTime(b) - getTime(a);
+  });
 }
 
 export async function getAnnouncementById(id: string) {
@@ -201,7 +215,7 @@ export async function getAnnouncementById(id: string) {
           categoryColor: row.category_color || CATEGORY_COLORS[row.type] || '#3B82F6',
           title: row.title,
           timestamp: row.timestamp_text || 'Just Now',
-          createdAt: row.created_at,
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
           author: {
             name: row.author_name || 'Leadership',
             avatar: row.author_avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',

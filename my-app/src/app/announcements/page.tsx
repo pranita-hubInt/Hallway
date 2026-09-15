@@ -24,7 +24,7 @@ export default function AnnouncementsPage() {
 
   // Filter posts
   const filteredAnnouncements = feedPosts.filter((post) => {
-    if (tagFilter === 'ANNOUNCEMENTS' && post.type !== 'announcement') return false;
+    if (tagFilter === 'ANNOUNCEMENTS' && post.type !== 'announcement' && post.type !== 'general') return false;
     if (tagFilter === 'PERFORMERS' && post.type !== 'performer') return false;
 
     if (searchQuery) {
@@ -37,6 +37,30 @@ export default function AnnouncementsPage() {
       );
     }
     return true;
+  });
+
+  // Ensure newly broadcasted announcements appear strictly first
+  const sortedAnnouncements = [...filteredAnnouncements].sort((a, b) => {
+    // 1. Broadcast announcements (announcement, performer, general) take priority over background CRM sync cards
+    const isBroadcastA = a.type === 'announcement' || a.type === 'performer' || a.type === 'general' || a.id?.startsWith('post-');
+    const isBroadcastB = b.type === 'announcement' || b.type === 'performer' || b.type === 'general' || b.id?.startsWith('post-');
+
+    if (isBroadcastA && !isBroadcastB) return -1;
+    if (!isBroadcastA && isBroadcastB) return 1;
+
+    // 2. Sort by creation time / timestamp descending (newest first)
+    const getTime = (p: typeof a) => {
+      if (p.createdAt) {
+        const t = new Date(p.createdAt).getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (p.id?.startsWith('post-')) {
+        const num = Number(p.id.replace('post-', ''));
+        if (!isNaN(num)) return num;
+      }
+      return 0;
+    };
+    return getTime(b) - getTime(a);
   });
 
   return (
@@ -112,11 +136,11 @@ export default function AnnouncementsPage() {
       </div>
 
       <div className="space-y-4 max-w-3xl">
-        {filteredAnnouncements.map((post) => (
+        {sortedAnnouncements.map((post) => (
           <FeedCard key={post.id} post={post} />
         ))}
 
-        {filteredAnnouncements.length === 0 && (
+        {sortedAnnouncements.length === 0 && (
           <div className="text-center py-16 bg-white dark:bg-[#0D1829] rounded-2xl border border-slate-200 dark:border-slate-800 p-8">
             <p className="text-sm font-semibold text-slate-500">
               No announcements matching current filter or search query.
