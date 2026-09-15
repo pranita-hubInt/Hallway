@@ -15,7 +15,7 @@ async function handle(request: Request, context: RouteContext) {
     const message =
       err instanceof Error
         ? err.message
-        : 'Hub CRM is not reachable. Start Project-ERP on port 8081, or set CRM_API_PROXY_TARGET in my-app/.env.local.';
+        : 'Hub CRM is not reachable at https://hows.hubinterior.com.';
     return Response.json({ error: message }, { status: 503 });
   }
 }

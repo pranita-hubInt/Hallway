@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Lock,
   User,
@@ -11,21 +10,21 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ArrowLeft,
   Briefcase,
   Palette,
   AlertCircle,
   Loader2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { saveDesignHandoff } from '../../lib/modulePortals';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, theme, toggleTheme } = useApp();
   const [role, setRole] = useState<'crm' | 'design'>('crm');
-  const [identifier, setIdentifier] = useState('ranjith@hubinterior.com');
-  const [password, setPassword] = useState('••••••••');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,13 +33,8 @@ export default function LoginPage() {
   const handleRoleChange = (newRole: 'crm' | 'design') => {
     setRole(newRole);
     setErrorMessage(null);
-    if (newRole === 'crm') {
-      setIdentifier('ranjith@hubinterior.com');
-      setPassword('••••••••');
-    } else {
-      setIdentifier('maya.lin@hubinterior.com');
-      setPassword('');
-    }
+    setIdentifier('');
+    setPassword('');
   };
 
   const toggleShowPassword = () => {
@@ -91,20 +85,15 @@ export default function LoginPage() {
         const data = await res.json().catch(() => null);
 
         if (res.ok && data?.sessionId && data?.user) {
-          // Handoff session to Design Module frontend accept route using URL fragment
-          const payload = encodeURIComponent(
-            JSON.stringify({
-              user: data.user,
-              sessionId: data.sessionId,
-            })
+          saveDesignHandoff(data.user, data.sessionId);
+          const designUser = data.user as { email?: string; name?: string; role?: string };
+          login(
+            designUser.email || id,
+            designUser.name || designUser.email || id,
+            designUser.role || 'DESIGN',
+            'Design'
           );
-          const designFrontendUrl = (
-            process.env.NEXT_PUBLIC_DESIGN_MODULE_FRONTEND_URL ||
-            'http://localhost:3002'
-          ).replace(/\/$/, '');
-
-          // Redirect to Design Module with payload in hash fragment (keeps sessionId out of server logs)
-          window.location.href = `${designFrontendUrl}/auth/accept#payload=${payload}`;
+          router.push('/');
           return;
         }
 
@@ -123,33 +112,18 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     } else {
-      // CRM Sales path: Authenticates against CRM, stays in CRM
-      if (id.toLowerCase().includes('reynolds')) {
-        login('a.reynolds@hubinterior.com', 'A. Reynolds', 'Dir. Sales Ops', 'Operations');
-      } else {
-        login(
-          id || 'ranjith@hubinterior.com',
-          id.toLowerCase().includes('ranjith') ? 'Ranjith' : id || 'Sales Lead',
-          'CRM & Sales Operations Lead',
-          'Sales'
-        );
-      }
+      login(
+        id,
+        id.toLowerCase().includes('ranjith') ? 'Ranjith' : id,
+        'CRM & Sales Operations Lead',
+        'Sales'
+      );
       router.push('/');
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] dark:bg-[#080C14] text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none transition-colors duration-300">
-      {/* Floating Back to Hallway Link */}
-      <Link
-        href="/"
-        className="absolute top-6 left-6 py-2 px-3.5 rounded-2xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer z-20"
-        title="Return to Hallway"
-      >
-        <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-        <span>Hallway</span>
-      </Link>
-
       {/* Floating Theme Toggle */}
       <button
         onClick={toggleTheme}
@@ -331,11 +305,11 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Signing in to Design Module...</span>
+                  <span>Signing in...</span>
                 </>
               ) : (
                 <>
-                  <span>{role === 'design' ? 'Login to Design Module' : 'Login'}</span>
+                  <span>Enter Hallway</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                 </>
               )}

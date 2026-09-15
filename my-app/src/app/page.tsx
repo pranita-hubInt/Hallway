@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Filter, Plus, ChevronDown, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import FeedCard from '../components/home/FeedCard';
+import ModuleLaunch from '../components/home/ModuleLaunch';
 import WidgetToday from '../components/home/WidgetToday';
 import WidgetActions from '../components/home/WidgetActions';
 import WidgetCampaign from '../components/home/WidgetCampaign';
@@ -59,6 +60,8 @@ export default function HomePage() {
           </button>
         </div>
       </div>
+
+      <ModuleLaunch />
 
       {/* Main 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

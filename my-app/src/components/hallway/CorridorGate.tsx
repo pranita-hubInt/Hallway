@@ -10,7 +10,7 @@ export function corridorErrorMessage(error: unknown): string | null {
     if (error.status === 403) return error.message || 'You do not have access to this corridor.';
     if (error.status === 400) return error.message || 'Bad request.';
     if (error.status === 503) {
-      return error.message || 'Hub CRM is unreachable. Confirm Project-ERP is running on http://localhost:8081.';
+      return error.message || 'Hub CRM is unreachable. Confirm https://hows.hubinterior.com is available.';
     }
     return error.message;
   }

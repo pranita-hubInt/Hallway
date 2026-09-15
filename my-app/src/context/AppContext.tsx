@@ -17,13 +17,16 @@ import {
   crmLeadsMock,
   designProjectsMock
 } from '../data/mockData';
-import { getStoredCrmUser, fetchFeed, fetchTargets } from '../lib/crmApi';
+import { fetchFeed, fetchTargets, clearCrmSession } from '../lib/crmApi';
+import { clearDesignHandoff } from '../lib/modulePortals';
 
 interface AppContextType {
   currentUser: User;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   isAuthenticated: boolean;
+  authReady: boolean;
+  loginPortal: 'crm' | 'design';
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean | ((prev: boolean) => boolean)) => void;
   toggleSidebar: () => void;
@@ -66,7 +69,39 @@ interface AppContextType {
   setActiveLeaderboardView: (v: 'Individual' | 'Team') => void;
 }
 
+const HALLWAY_SESSION_KEY = 'hallway-auth';
 const HALLWAY_LOCAL_API = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
+
+function userFromSession(
+  email?: string,
+  name?: string,
+  role?: string,
+  department: User['department'] = 'Sales'
+): User {
+  if (department === 'Design' || email?.toLowerCase().includes('maya')) {
+    return { ...designerUserMock, email: email || designerUserMock.email, name: name || designerUserMock.name };
+  }
+  if (email?.toLowerCase().includes('ranjith')) {
+    return { ...alternateUserMock, email: email || alternateUserMock.email };
+  }
+  const display = (name || email || 'User').trim();
+  const initials = display
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+  return {
+    id: 'u-session',
+    name: display,
+    role: role || 'SALES',
+    initials: initials || 'U',
+    avatar: currentUserMock.avatar,
+    email: email || '',
+    department,
+    isOnline: true,
+  };
+}
 
 function formatBranchName(raw?: string): string {
   if (!raw) return 'Hub Sales';
@@ -102,7 +137,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(currentUserMock);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [loginPortal, setLoginPortal] = useState<'crm' | 'design'>('crm');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activeDepartment, setActiveDepartment] = useState<string>('All Departments');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -131,16 +168,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Sync active logged-in user if available from CRM session
+  // Restore Hallway session before showing corridors
   useEffect(() => {
-    const storedUser = getStoredCrmUser();
-    if (storedUser?.username) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        name: storedUser.username === 'admin' ? 'Super Admin' : storedUser.username,
-        role: storedUser.role || prev.role,
-        department: (storedUser.branch as any) || prev.department,
-      }));
+    try {
+      const raw = window.localStorage.getItem(HALLWAY_SESSION_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          email?: string;
+          name?: string;
+          role?: string;
+          department?: User['department'];
+          portal?: 'crm' | 'design';
+        };
+        setCurrentUser(userFromSession(saved.email, saved.name, saved.role, saved.department));
+        setLoginPortal(saved.portal || (saved.department === 'Design' ? 'design' : 'crm'));
+        setIsAuthenticated(true);
+      }
+    } catch {
+      window.localStorage.removeItem(HALLWAY_SESSION_KEY);
+    } finally {
+      setAuthReady(true);
     }
   }, []);
 
@@ -329,6 +376,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Initial load, periodic background polling (every 25s), and tab focus re-sync
   useEffect(() => {
+    if (!isAuthenticated) return;
     void refreshFeed();
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -347,7 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -614,29 +662,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     role?: string,
     department: User['department'] = 'Sales'
   ) => {
+    const nextUser = userFromSession(email, name, role, department);
+    const portal: 'crm' | 'design' = department === 'Design' ? 'design' : 'crm';
+    setCurrentUser(nextUser);
+    setLoginPortal(portal);
     setIsAuthenticated(true);
-    if (department === 'Design' || email?.includes('maya')) {
-      setCurrentUser(designerUserMock);
-    } else if (email?.includes('ranjith')) {
-      setCurrentUser(alternateUserMock);
-    } else {
-      setCurrentUser(currentUserMock);
+    try {
+      window.localStorage.setItem(
+        HALLWAY_SESSION_KEY,
+        JSON.stringify({
+          email: nextUser.email,
+          name: nextUser.name,
+          role: nextUser.role,
+          department: nextUser.department,
+          portal,
+        })
+      );
+    } catch {
+      // ignore
     }
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setLoginPortal('crm');
+    setCurrentUser(currentUserMock);
+    try {
+      window.localStorage.removeItem(HALLWAY_SESSION_KEY);
+    } catch {
+      // ignore
+    }
+    clearCrmSession();
+    clearDesignHandoff();
   };
 
   const switchUser = (target?: 'admin' | 'crm' | 'design') => {
     if (target === 'design') {
       setCurrentUser(designerUserMock);
+      setLoginPortal('design');
     } else if (target === 'crm') {
       setCurrentUser(alternateUserMock);
+      setLoginPortal('crm');
     } else {
-      if (currentUser.id === 'u1') setCurrentUser(alternateUserMock);
-      else if (currentUser.id === 'u2') setCurrentUser(designerUserMock);
-      else setCurrentUser(currentUserMock);
+      if (currentUser.id === 'u1') {
+        setCurrentUser(alternateUserMock);
+        setLoginPortal('crm');
+      } else if (currentUser.id === 'u2') {
+        setCurrentUser(designerUserMock);
+        setLoginPortal('design');
+      } else {
+        setCurrentUser(currentUserMock);
+        setLoginPortal('crm');
+      }
     }
   };
 
@@ -651,6 +728,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         theme,
         toggleTheme,
         isAuthenticated,
+        authReady,
+        loginPortal,
         sidebarCollapsed,
         setSidebarCollapsed,
         toggleSidebar,

@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Bell, X, Megaphone, Users, Award, Briefcase, ChevronRight, Sparkles, Sun, Moon } from 'lucide-react';
+import { Search, Bell, X, Megaphone, Users, Award, Briefcase, Sun, Moon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { leaderboardMembersMock, individualRecordsMock } from '../../data/mockData';
 import LoginAuthIcon from '../common/LoginAuthIcon';
@@ -21,10 +20,7 @@ export default function Header() {
     clearNotifications,
     theme,
     toggleTheme,
-    currentUser,
-    switchUser,
     logout,
-    isAuthenticated
   } = useApp();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -367,14 +363,18 @@ export default function Header() {
           )}
         </div>
 
-        {/* Login / Auth Icon - directly redirects to /login */}
-        <Link
-          href="/login"
+        {/* Sign out */}
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.push('/login');
+          }}
           className="w-9 h-9 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700/60 flex items-center justify-center cursor-pointer shadow-xs group relative overflow-hidden"
-          title="Login to HUB"
+          title="Sign out"
         >
           <LoginAuthIcon size={22} className="transition-transform group-hover:scale-105" />
-        </Link>
+        </button>
       </div>
     </header>
   );

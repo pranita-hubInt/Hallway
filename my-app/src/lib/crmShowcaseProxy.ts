@@ -1,4 +1,4 @@
-const DEFAULT_CRM = 'http://127.0.0.1:8081';
+const DEFAULT_CRM = 'https://hows.hubinterior.com';
 const UPSTREAM_MS = 60_000;
 const LOGIN_MS = 8_000;
 
@@ -23,8 +23,8 @@ function showcaseToken() {
 function crmCredentials() {
   const username = process.env.CRM_USERNAME || process.env.HUB_CRM_USERNAME;
   const password = process.env.CRM_PASSWORD || process.env.HUB_CRM_PASSWORD;
-  if (username && password) return { username, password };
-  return { username: 'admin', password: 'admin123' };
+  if (!username || !password) return null;
+  return { username, password };
 }
 
 function describeUpstreamError(err: unknown): string {
@@ -32,7 +32,7 @@ function describeUpstreamError(err: unknown): string {
   const cause = asError?.cause as { code?: string; message?: string } | undefined;
   const raw = [asError?.message, cause?.code, cause?.message].filter(Boolean).join(' ');
   if (/ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ECONNRESET|UND_ERR|fetch failed/i.test(raw)) {
-    return `Hub CRM is not reachable at ${CRM_BASE}. Start Project-ERP on port 8081, or set CRM_API_PROXY_TARGET in my-app/.env.local.`;
+    return `Hub CRM is not reachable at ${CRM_BASE}. Confirm https://hows.hubinterior.com is up, or set CRM_API_PROXY_TARGET.`;
   }
   if (/abort|timeout/i.test(raw)) {
     return `Hub CRM timed out at ${CRM_BASE}. Retry — leaderboard can take ~30s on a cold start.`;
@@ -53,12 +53,14 @@ async function loginWith(username: string, password: string): Promise<string | n
 }
 
 async function loginToHub(): Promise<string> {
-  try {
-    const creds = crmCredentials();
-    const token = await loginWith(creds.username, creds.password);
-    if (token) return token;
-  } catch {
-    // Hub may be down or the local admin account may not exist.
+  const creds = crmCredentials();
+  if (creds) {
+    try {
+      const token = await loginWith(creds.username, creds.password);
+      if (token) return token;
+    } catch {
+      // Service account login failed; fall through to showcase token.
+    }
   }
   return showcaseToken();
 }
@@ -129,7 +131,7 @@ function toResponse(status: number, contentType: string | null, body: ArrayBuffe
 function hubErrorMessage(body: ArrayBuffer): string {
   const text = new TextDecoder().decode(body);
   if (/no static resource/i.test(text)) {
-    return `Hub CRM at ${CRM_BASE} does not have Hallway APIs loaded. Restart Project-ERP from the latest source so GET /v1/hallway/leaderboard exists.`;
+    return `Hub CRM at ${CRM_BASE} does not have Hallway APIs loaded. Confirm GET /v1/hallway/leaderboard exists on https://hows.hubinterior.com.`;
   }
   try {
     const parsed = JSON.parse(text) as { error?: string; message?: string };
@@ -138,7 +140,7 @@ function hubErrorMessage(body: ArrayBuffer): string {
     // Hub sometimes returns an HTML error page.
   }
   if (text.trim()) return text.slice(0, 300);
-  return `Hub CRM failed this request at ${CRM_BASE}. Confirm Project-ERP is running and includes the Hallway showcase APIs.`;
+  return `Hub CRM failed this request at ${CRM_BASE}. Confirm Hallway showcase APIs are available on https://hows.hubinterior.com.`;
 }
 
 function isMissingHallwayApi(status: number, body: ArrayBuffer): boolean {

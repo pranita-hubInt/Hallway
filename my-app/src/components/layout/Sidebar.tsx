@@ -11,16 +11,19 @@ import {
   Users,
   Megaphone,
   LineChart,
+  Briefcase,
+  Palette,
 } from 'lucide-react';
 import HowsLogo from '../common/HowsLogo';
 import { useApp } from '../../context/AppContext';
+import { openCrmDashboard, openDesignDashboard } from '../../lib/modulePortals';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { currentUser } = useApp();
+  const { currentUser, loginPortal } = useApp();
   const [isHovered, setIsHovered] = useState(false);
 
-  const isDesigner = currentUser.department === 'Design';
+  const isDesigner = loginPortal === 'design' || currentUser.department === 'Design';
 
   const mainNavItems = [
     { name: 'Home', href: '/', icon: Home },
@@ -158,6 +161,43 @@ export default function Sidebar() {
             })}
           </div>
         )}
+
+        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-1.5">
+          {isHovered && (
+            <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1 animate-in fade-in duration-150">
+              Dashboards
+            </span>
+          )}
+          {isDesigner ? (
+            <button
+              type="button"
+              onClick={openDesignDashboard}
+              title={!isHovered ? 'Design Module' : undefined}
+              className={`w-full flex items-center rounded-xl text-xs sm:text-sm font-semibold transition-all group relative overflow-hidden text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 ${
+                isHovered ? 'px-3.5 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'
+              }`}
+            >
+              <div className={`flex items-center justify-center shrink-0 ${isHovered ? 'w-5 h-5' : 'w-10 h-10'}`}>
+                <Palette className="w-4 h-4" />
+              </div>
+              {isHovered && <span className="truncate flex-1 text-left">Design Module</span>}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={openCrmDashboard}
+              title={!isHovered ? 'CRM' : undefined}
+              className={`w-full flex items-center rounded-xl text-xs sm:text-sm font-semibold transition-all group relative overflow-hidden text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40 ${
+                isHovered ? 'px-3.5 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'
+              }`}
+            >
+              <div className={`flex items-center justify-center shrink-0 ${isHovered ? 'w-5 h-5' : 'w-10 h-10'}`}>
+                <Briefcase className="w-4 h-4" />
+              </div>
+              {isHovered && <span className="truncate flex-1 text-left">CRM</span>}
+            </button>
+          )}
+        </div>
       </nav>
     </aside>
   );

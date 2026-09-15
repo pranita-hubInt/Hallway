@@ -152,7 +152,7 @@ async function crmFetch<T>(
     if (isAbortError(err)) throw err;
     throw new CrmApiError(
       503,
-      'Hub CRM is unreachable. Confirm Project-ERP is running on http://localhost:8081.',
+      'Hub CRM is unreachable. Confirm https://hows.hubinterior.com is available.',
       null
     );
   }
@@ -176,7 +176,7 @@ async function crmFetch<T>(
       503,
       errorMessage(
         body,
-        'Hub CRM failed this request. Confirm Project-ERP is running on http://localhost:8081 and retry.'
+        'Hub CRM failed this request. Confirm https://hows.hubinterior.com is available and retry.'
       ),
       body
     );
