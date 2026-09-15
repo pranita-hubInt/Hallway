@@ -1,6 +1,7 @@
 import type {
   CrmApiErrorBody,
   CrmLoginResponse,
+  CrmLoginUser,
   InsightsDashboard,
   InsightsFilterOptions,
   InsightsFilterParams,
@@ -24,6 +25,25 @@ import type {
 
 const TOKEN_KEY = 'hallway-crm-token';
 const USER_KEY = 'hallway-crm-user';
+const CRM_TOKEN_STORAGE_KEY = 'crm_token';
+const CRM_ROLE_STORAGE_KEY = 'crm_role';
+const CRM_USER_NAME_STORAGE_KEY = 'crm_user_name';
+const CRM_LOGIN_USERNAME_KEY = 'crm_login_username';
+const CRM_USER_ID_STORAGE_KEY = 'crm_user_id';
+const CRM_DESIGNER_NAME_STORAGE_KEY = 'crm_designer_name';
+const CRM_DESIGNER_ID_STORAGE_KEY = 'crm_designer_id';
+const CRM_ACTIVE_MODULE_KEY = 'crm_active_module';
+
+const CRM_SALES_ROLES = new Set([
+  'SALES_EXECUTIVE',
+  'SALES_MANAGER',
+  'SALES_ADMIN',
+  'ADMIN',
+  'SUPER_ADMIN',
+  'MANAGER',
+]);
+const CRM_PRESALES_ROLES = new Set(['PRESALES_EXECUTIVE', 'PRESALES_MANAGER']);
+const CRM_DESIGN_ROLES = new Set(['DESIGNER', 'DESIGN_MANAGER', 'TERRITORY_DESIGN_MANAGER']);
 
 export class CrmApiError extends Error {
   status: number;
@@ -63,8 +83,25 @@ export function getStoredCrmUser(): CrmLoginResponse['user'] | null {
 export function setCrmSession(token: string, user?: CrmLoginResponse['user'] | null) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(TOKEN_KEY, token);
+  window.localStorage.setItem(CRM_TOKEN_STORAGE_KEY, token);
   if (user) {
+    const role = normalizeCrmRole(extractCrmRole(user));
+    const displayName = crmDisplayName(user);
     window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    window.localStorage.setItem(CRM_ROLE_STORAGE_KEY, role);
+    window.localStorage.setItem(CRM_USER_NAME_STORAGE_KEY, displayName);
+    window.localStorage.setItem(CRM_LOGIN_USERNAME_KEY, user.username || '');
+    window.localStorage.setItem(CRM_USER_ID_STORAGE_KEY, String(user.id ?? ''));
+    window.localStorage.setItem(
+      CRM_ACTIVE_MODULE_KEY,
+      CRM_PRESALES_ROLES.has(role) ? 'presales' : 'crm'
+    );
+    if (user.designerName) {
+      window.localStorage.setItem(CRM_DESIGNER_NAME_STORAGE_KEY, user.designerName);
+    }
+    if (user.designerId != null) {
+      window.localStorage.setItem(CRM_DESIGNER_ID_STORAGE_KEY, String(user.designerId));
+    }
   }
   window.dispatchEvent(new Event('hallway-crm-session'));
 }
@@ -73,11 +110,129 @@ export function clearCrmSession() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
+  window.localStorage.removeItem(CRM_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_ROLE_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_USER_NAME_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_LOGIN_USERNAME_KEY);
+  window.localStorage.removeItem(CRM_USER_ID_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_DESIGNER_NAME_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_DESIGNER_ID_STORAGE_KEY);
+  window.localStorage.removeItem(CRM_ACTIVE_MODULE_KEY);
   window.dispatchEvent(new Event('hallway-crm-session'));
 }
 
-export function getAuthHeaders(_token?: string | null): HeadersInit {
-  return { Accept: 'application/json' };
+export function getAuthHeaders(token?: string | null): HeadersInit {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (token?.trim()) headers.Authorization = `Bearer ${token.trim()}`;
+  return headers;
+}
+
+export function normalizeCrmRole(role?: string | null): string {
+  const raw = (role || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (raw === 'MANAGER') return 'SALES_MANAGER';
+  return raw;
+}
+
+export function extractCrmRole(user?: CrmLoginUser | null, extra?: Record<string, unknown>): string {
+  const fromRoles = Array.isArray(user?.roles) ? user?.roles[0] : undefined;
+  const value =
+    user?.role ||
+    user?.userRole ||
+    fromRoles ||
+    (typeof extra?.role === 'string' ? extra.role : undefined) ||
+    (typeof extra?.userRole === 'string' ? extra.userRole : undefined);
+  return normalizeCrmRole(value);
+}
+
+export function getStoredCrmRole(): string {
+  if (typeof window === 'undefined') return '';
+  return normalizeCrmRole(window.localStorage.getItem(CRM_ROLE_STORAGE_KEY));
+}
+
+export function landingPathByRole(role?: string | null): string {
+  const normalized = normalizeCrmRole(role);
+  if (CRM_PRESALES_ROLES.has(normalized)) return '/presales-leads';
+  return '/Leads';
+}
+
+export function crmDisplayName(user?: CrmLoginUser | null): string {
+  return (user?.name || user?.fullName || user?.username || '').trim();
+}
+
+export function getCrmSessionSnapshot() {
+  if (typeof window === 'undefined') return null;
+  const token =
+    window.localStorage.getItem(CRM_TOKEN_STORAGE_KEY)?.trim() || getStoredCrmToken();
+  if (!token) return null;
+  return {
+    crm_token: token,
+    crm_role: window.localStorage.getItem(CRM_ROLE_STORAGE_KEY) || '',
+    crm_user_name: window.localStorage.getItem(CRM_USER_NAME_STORAGE_KEY) || '',
+    crm_login_username: window.localStorage.getItem(CRM_LOGIN_USERNAME_KEY) || '',
+    crm_user_id: window.localStorage.getItem(CRM_USER_ID_STORAGE_KEY) || '',
+    crm_active_module: window.localStorage.getItem(CRM_ACTIVE_MODULE_KEY) || 'crm',
+  };
+}
+
+function isCrmSalesFamily(role: string) {
+  return CRM_SALES_ROLES.has(role) || CRM_PRESALES_ROLES.has(role);
+}
+
+function isCrmDesignFamily(role: string) {
+  return CRM_DESIGN_ROLES.has(role) || role.includes('DESIGN');
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function extractLoginToken(payload: Record<string, unknown>): string | null {
+  const nested = asRecord(payload.data);
+  const token =
+    (typeof payload.token === 'string' && payload.token) ||
+    (typeof payload.accessToken === 'string' && payload.accessToken) ||
+    (typeof nested?.token === 'string' && nested.token) ||
+    (typeof nested?.accessToken === 'string' && nested.accessToken) ||
+    '';
+  return token.trim() || null;
+}
+
+function looksLikeUser(raw: Record<string, unknown> | null): raw is Record<string, unknown> {
+  if (!raw) return false;
+  return (
+    raw.id != null ||
+    raw.userId != null ||
+    typeof raw.username === 'string' ||
+    (typeof raw.email === 'string' && !('token' in raw))
+  );
+}
+
+function extractLoginUser(payload: Record<string, unknown>): CrmLoginUser | null {
+  const nested = asRecord(payload.data);
+  const raw =
+    asRecord(payload.user) ||
+    asRecord(nested?.user) ||
+    (looksLikeUser(nested) ? nested : null);
+  if (!raw || !looksLikeUser(raw)) return null;
+  const id = Number(raw.id ?? raw.userId);
+  const username = String(raw.username || raw.email || '').trim();
+  if (!Number.isFinite(id) && !username) return null;
+  return {
+    id: Number.isFinite(id) ? id : 0,
+    username,
+    email: typeof raw.email === 'string' ? raw.email : undefined,
+    name: typeof raw.name === 'string' ? raw.name : undefined,
+    fullName: typeof raw.fullName === 'string' ? raw.fullName : undefined,
+    role: String(raw.role || raw.userRole || ''),
+    userRole: typeof raw.userRole === 'string' ? raw.userRole : undefined,
+    roles: Array.isArray(raw.roles) ? raw.roles.map((item) => String(item)) : undefined,
+    managerId: raw.managerId == null ? null : Number(raw.managerId),
+    branch: typeof raw.branch === 'string' ? raw.branch : undefined,
+    designerName: typeof raw.designerName === 'string' ? raw.designerName : undefined,
+    designerId: raw.designerId == null ? undefined : Number(raw.designerId),
+  };
 }
 
 function sharedQuery(params: InsightsFilterParams, extras?: Record<string, string>): string {
@@ -188,17 +343,54 @@ async function crmFetch<T>(
   return (body ?? {}) as T;
 }
 
+export async function fetchCrmMe(token: string): Promise<CrmLoginUser | null> {
+  const data = await crmFetch<Record<string, unknown>>('/api/auth/me', {}, token);
+  return extractLoginUser(data);
+}
+
 export async function loginToCrm(username: string, password: string): Promise<CrmLoginResponse> {
-  const data = await crmFetch<CrmLoginResponse>('/api/auth/login', {
+  const payload = await crmFetch<Record<string, unknown>>('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  if (!data.success || !data.token) {
-    throw new CrmApiError(400, data.message || 'Login failed', { message: data.message });
+
+  const token = extractLoginToken(payload);
+  if (!token) {
+    throw new CrmApiError(400, String(payload.message || payload.error || 'Login failed'), {
+      message: String(payload.message || payload.error || 'Login failed'),
+    });
   }
-  setCrmSession(data.token, data.user);
-  return data;
+
+  let user = extractLoginUser(payload);
+  if (!user) {
+    try {
+      user = await fetchCrmMe(token);
+    } catch {
+      user = null;
+    }
+  }
+
+  const role = extractCrmRole(user, payload);
+  if (isCrmDesignFamily(role)) {
+    throw new CrmApiError(403, 'This account is a Design role. Use Designers login.', {
+      message: 'This account is a Design role. Use Designers login.',
+    });
+  }
+  if (role && !isCrmSalesFamily(role)) {
+    throw new CrmApiError(403, 'This account cannot use CRM Sales login.', {
+      message: 'This account cannot use CRM Sales login.',
+    });
+  }
+
+  if (user && !user.role) user.role = role;
+  setCrmSession(token, user);
+  return {
+    success: true,
+    token,
+    user: user ?? undefined,
+    message: typeof payload.message === 'string' ? payload.message : undefined,
+  };
 }
 
 export async function fetchInsightsFilterOptions(

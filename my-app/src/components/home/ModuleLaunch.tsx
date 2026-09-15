@@ -44,9 +44,9 @@ export default function ModuleLaunch() {
         </span>
         <div className="min-w-0">
           <p className="text-sm font-extrabold text-slate-900 dark:text-white">CRM</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-            Open your Hows CRM dashboard
-          </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Open CRM Leads
+            </p>
         </div>
       </div>
       <ArrowUpRight className="w-4 h-4 text-sky-600 dark:text-sky-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />

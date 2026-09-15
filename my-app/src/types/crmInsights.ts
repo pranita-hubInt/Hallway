@@ -320,9 +320,15 @@ export interface CrmLoginUser {
   id: number;
   username: string;
   email?: string;
+  name?: string;
+  fullName?: string;
   role: string;
+  userRole?: string;
+  roles?: string[];
   managerId?: number | null;
   branch?: string;
+  designerName?: string;
+  designerId?: number | null;
 }
 
 export interface CrmLoginResponse {

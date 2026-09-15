@@ -151,6 +151,47 @@ function isMissingHallwayApi(status: number, body: ArrayBuffer): boolean {
   return /no static resource|whitelabel error/i.test(text);
 }
 
+function isHubLoginPath(path: string) {
+  return path === 'api/auth/login' || path === 'auth/login';
+}
+
+function isHubAuthPath(path: string) {
+  return (
+    isHubLoginPath(path) ||
+    path === 'api/auth/me' ||
+    path === 'auth/me' ||
+    path === 'api/auth/logout' ||
+    path === 'auth/logout' ||
+    path === 'api/auth/validate' ||
+    path === 'auth/validate'
+  );
+}
+
+function clientBearer(request: Request): string | null {
+  const auth = request.headers.get('Authorization');
+  if (!auth) return null;
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  const token = match?.[1]?.trim();
+  return token || null;
+}
+
+async function proxyHubLogin(request: Request): Promise<Response> {
+  const body = await request.arrayBuffer();
+  try {
+    const res = await fetch(`${CRM_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(LOGIN_MS),
+    });
+    const buf = await res.arrayBuffer();
+    return toResponse(res.status, res.headers.get('Content-Type'), buf);
+  } catch (err) {
+    return Response.json({ error: describeUpstreamError(err) }, { status: 503 });
+  }
+}
+
 function candidateTargets(path: string, search: string): string[] {
   if (path.startsWith('v1/hallway/') || path.startsWith('api/hallway/')) {
     const rest = path.replace(/^v1\/hallway\//, '').replace(/^api\/hallway\//, '');
@@ -178,15 +219,16 @@ async function fetchWithFallback(
   path: string,
   search: string,
   method: string,
-  body?: ArrayBuffer
+  body?: ArrayBuffer,
+  preferToken?: string | null
 ): Promise<UpstreamPayload> {
   const targets = candidateTargets(path, search);
   let last: UpstreamPayload | null = null;
 
   for (const target of targets) {
-    let token = await getShowcaseCrmToken();
+    let token = preferToken || (await getShowcaseCrmToken());
     let res = await fetchUpstream(target, token, method, body);
-    if (res.status === 401) {
+    if (res.status === 401 && !preferToken) {
       token = await getShowcaseCrmToken(true);
       res = await fetchUpstream(target, token, method, body);
     }
@@ -206,12 +248,19 @@ export async function proxyToCrm(request: Request, pathParts: string[]): Promise
   const path = pathParts.join('/');
   const incoming = new URL(request.url);
   const method = request.method.toUpperCase();
+
+  if (method === 'POST' && isHubLoginPath(path)) {
+    return proxyHubLogin(request);
+  }
+
   const hasBody = method !== 'GET' && method !== 'HEAD';
   const body = hasBody ? await request.clone().arrayBuffer() : undefined;
+  const preferToken = clientBearer(request);
   const key = `${method}:${path}${incoming.search}`;
   const now = Date.now();
+  const cacheable = method === 'GET' && !isHubAuthPath(path) && !preferToken;
 
-  if (method === 'GET') {
+  if (cacheable) {
     const cached = getCache.get(key);
     if (cached && cached.expiresAt > now) {
       return toResponse(cached.payload.status, cached.payload.contentType, cached.payload.body);
@@ -220,13 +269,13 @@ export async function proxyToCrm(request: Request, pathParts: string[]): Promise
 
   try {
     const out =
-      method === 'GET'
-        ? await coalesceGet(key, () => fetchWithFallback(path, incoming.search, method, body))
-        : await fetchWithFallback(path, incoming.search, method, body);
+      cacheable
+        ? await coalesceGet(key, () => fetchWithFallback(path, incoming.search, method, body, preferToken))
+        : await fetchWithFallback(path, incoming.search, method, body, preferToken);
     if (out.status >= 500 || isMissingHallwayApi(out.status, out.body)) {
       return Response.json({ error: hubErrorMessage(out.body) }, { status: 503 });
     }
-    if (method === 'GET' && out.status === 200) {
+    if (cacheable && out.status === 200) {
       getCache.set(key, { expiresAt: now + CACHE_TTL_MS, payload: out });
     }
     return toResponse(out.status, out.contentType, out.body);

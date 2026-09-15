@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { CrmApiError, crmDisplayName, loginToCrm } from '../../lib/crmApi';
 import { saveDesignHandoff } from '../../lib/modulePortals';
 
 export default function LoginPage() {
@@ -93,7 +94,7 @@ export default function LoginPage() {
             designUser.role || 'DESIGN',
             'Design'
           );
-          router.push('/');
+          router.replace('/');
           return;
         }
 
@@ -112,13 +113,34 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     } else {
-      login(
-        id,
-        id.toLowerCase().includes('ranjith') ? 'Ranjith' : id,
-        'CRM & Sales Operations Lead',
-        'Sales'
-      );
-      router.push('/');
+      setIsLoading(true);
+      try {
+        const data = await loginToCrm(id, password);
+        const user = data.user;
+        login(
+          user?.email || user?.username || id,
+          crmDisplayName(user) || id,
+          user?.role || 'SALES',
+          'Sales'
+        );
+        router.replace('/');
+      } catch (err) {
+        if (err instanceof CrmApiError) {
+          if (err.status === 401 || err.status === 400) {
+            setErrorMessage(
+              err.message && !/authorization failed|bad request/i.test(err.message)
+                ? err.message
+                : 'Invalid username or password'
+            );
+          } else {
+            setErrorMessage(err.message);
+          }
+        } else {
+          setErrorMessage('Hub CRM is unreachable. Try again.');
+        }
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 

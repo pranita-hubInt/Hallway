@@ -22,15 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.className} ${manrope.variable} h-full antialiased font-sans`}>
+    <html
+      lang="en"
+      className={`${manrope.className} ${manrope.variable} h-full antialiased font-sans`}
+      suppressHydrationWarning
+    >
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap"
-          rel="stylesheet"
-        />
-        {/* Instant theme execution script before DOM paint */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
