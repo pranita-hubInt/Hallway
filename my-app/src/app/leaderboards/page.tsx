@@ -101,7 +101,7 @@ function LeaderboardsInner() {
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Top performers by gross bookings and conversion efficiency.
+              Top 5 performers by gross bookings and conversion efficiency.
             </p>
           </div>
 
@@ -151,7 +151,7 @@ function LeaderboardsInner() {
         </div>
 
         {loading ? (
-          <CorridorSkeleton rows={6} />
+          <CorridorSkeleton rows={5} />
         ) : view === 'Individual' ? (
           individuals.length === 0 ? (
             <EmptyState
@@ -171,7 +171,7 @@ function LeaderboardsInner() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {individuals.map((member) => {
+                  {individuals.slice(0, 5).map((member) => {
                     const rankStyles =
                       {
                         1: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300',
@@ -264,7 +264,7 @@ function LeaderboardsInner() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {teams.map((team) => (
+                {teams.slice(0, 5).map((team) => (
                   <tr key={team.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-4 pl-2">
                       <span className="w-6 h-6 rounded-full inline-flex items-center justify-center font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">

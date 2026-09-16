@@ -10,7 +10,6 @@ import {
   Target,
   Users,
   Megaphone,
-  LineChart,
   Briefcase,
   Palette,
 } from 'lucide-react';
@@ -33,13 +32,6 @@ export default function Sidebar() {
     { name: 'People', href: '/people', icon: Users },
     { name: 'Announcements', href: '/announcements', icon: Megaphone },
   ];
-
-  // CRM ERP and Design ERP removed per requirement. Insights remains for presales/analytics.
-  const erpItems = isDesigner
-    ? []
-    : [
-        { name: 'Insights', href: '/insights', icon: LineChart, badge: 'CRM' },
-      ];
 
   return (
     <aside
@@ -110,57 +102,6 @@ export default function Sidebar() {
             </Link>
           );
         })}
-
-        {/* Dynamic ERP Module (Insights only - CRM ERP & Design ERP removed per requirement) */}
-        {erpItems.length > 0 && (
-          <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/60">
-            {isHovered && (
-              <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1 animate-in fade-in duration-150">
-                Presales Module
-              </span>
-            )}
-
-            {erpItems.map((erpItem) => {
-              const isActive = pathname.startsWith(erpItem.href);
-              const ErpIcon = erpItem.icon;
-
-              return (
-                <Link
-                  key={erpItem.href}
-                  href={erpItem.href}
-                  title={!isHovered ? erpItem.name : undefined}
-                  className={`flex items-center rounded-xl text-xs sm:text-sm font-bold transition-all group relative overflow-hidden ${
-                    isHovered ? 'px-3.5 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'
-                  } ${
-                    isActive
-                      ? 'bg-[#EBF2FE] dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-300/60 dark:border-sky-800/60'
-                      : 'text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40'
-                  }`}
-                >
-                  <div className={`flex items-center justify-center shrink-0 ${isHovered ? 'w-5 h-5' : 'w-10 h-10'}`}>
-                    <ErpIcon className="w-4 h-4 transition-transform group-hover:scale-110" />
-                  </div>
-
-                  {isHovered && (
-                    <span className="truncate flex-1 tracking-tight whitespace-nowrap animate-in fade-in duration-200">
-                      {erpItem.name}
-                    </span>
-                  )}
-
-                  {isHovered && erpItem.badge && (
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase bg-sky-600 text-white shrink-0 animate-in fade-in duration-200">
-                      {erpItem.badge}
-                    </span>
-                  )}
-
-                  {!isHovered && isActive && (
-                    <span className="absolute left-0 top-2 bottom-2 w-1 bg-sky-600 rounded-r-full" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        )}
 
         <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-1.5">
           {isHovered && (

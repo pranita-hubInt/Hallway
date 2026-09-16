@@ -6,6 +6,7 @@ import { Search, Bell, X, Megaphone, Users, Award, Briefcase, Sun, Moon } from '
 import { useApp } from '../../context/AppContext';
 import { leaderboardMembersMock, individualRecordsMock } from '../../data/mockData';
 import LoginAuthIcon from '../common/LoginAuthIcon';
+import ModuleLauncher from './ModuleLauncher';
 
 export default function Header() {
   const pathname = usePathname();
@@ -314,8 +315,11 @@ export default function Header() {
         )}
       </div>
 
-      {/* Right Action Controls: Theme Toggle, Notifications, Login/Profile Icon */}
+      {/* Right Action Controls: Module Switcher, Theme Toggle, Notifications, Login/Profile Icon */}
       <div className="flex items-center gap-2.5 shrink-0">
+        {/* Module Switcher: CRM, Design, HR */}
+        <ModuleLauncher />
+
         {/* Theme Toggle: Light and Dark Mode beside notifications */}
         <button
           type="button"
