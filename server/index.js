@@ -209,7 +209,7 @@ app.post('/api/announcements/:id/comments', async (req, res) => {
 // POST /api/announcements/:id/reactions - toggle reaction on announcement
 app.post('/api/announcements/:id/reactions', async (req, res) => {
   const { reactionType } = req.body;
-  if (!['thumbsUp', 'clap', 'heart'].includes(reactionType)) {
+  if (!['thumbsUp', 'clap', 'heart', 'joy', 'surprised', 'sad', 'pray'].includes(reactionType)) {
     return res.status(400).json({ error: 'Invalid reaction type' });
   }
 

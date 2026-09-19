@@ -35,7 +35,7 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   feedPosts: FeedPost[];
-  addReaction: (postId: string, reactionType: 'thumbsUp' | 'clap' | 'heart') => void;
+  addReaction: (postId: string, reactionType: string) => void;
   addComment: (
     postId: string,
     content: string,
@@ -140,7 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [loginPortal, setLoginPortal] = useState<'crm' | 'design'>('crm');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true);
   const [activeDepartment, setActiveDepartment] = useState<string>('All Departments');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(initialFeedPosts);
@@ -439,15 +439,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  const addReaction = async (postId: string, reactionType: 'thumbsUp' | 'clap' | 'heart') => {
+  const addReaction = async (postId: string, reactionType: string) => {
     // Optimistic UI update
     setFeedPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId) return post;
-        const userKey = ('user' + reactionType.charAt(0).toUpperCase() + reactionType.slice(1)) as
-          | 'userThumbsUp'
-          | 'userClap'
-          | 'userHeart';
+        const userKey = 'user' + reactionType.charAt(0).toUpperCase() + reactionType.slice(1);
         const alreadyReacted = Boolean(post.reactions[userKey]);
         const currentCount = post.reactions[reactionType] || 0;
 

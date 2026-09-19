@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Bell, X, Megaphone, Users, Award, Briefcase, Sun, Moon } from 'lucide-react';
+import { Search, Bell, X, Megaphone, Users, Award, Briefcase, Sun, Moon, PanelLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { leaderboardMembersMock, individualRecordsMock } from '../../data/mockData';
 import LoginAuthIcon from '../common/LoginAuthIcon';
@@ -13,6 +13,7 @@ export default function Header() {
   const router = useRouter();
   const {
     sidebarCollapsed,
+    toggleSidebar,
     searchQuery,
     setSearchQuery,
     feedPosts,
@@ -121,10 +122,20 @@ export default function Header() {
 
   return (
     <header
-      className="fixed top-0 right-0 z-30 h-16 bg-white dark:bg-[#0B1320] border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between px-6 transition-all duration-300 font-sans left-[76px]"
+      className={`fixed top-0 right-0 z-30 h-16 bg-white dark:bg-[#0B1320] border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between px-6 transition-all duration-300 ease-in-out font-sans ${
+        sidebarCollapsed ? 'left-[76px]' : 'left-[240px]'
+      }`}
     >
-      {/* Left: Breadcrumb Badge */}
-      <div className="flex items-center gap-2">
+      {/* Left: Sidebar Toggle + Breadcrumb Badge */}
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
         <span className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider font-sans">
           {pageInfo.module}
         </span>

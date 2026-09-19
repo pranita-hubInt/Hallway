@@ -9,7 +9,7 @@ import { useApp } from '../../context/AppContext';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, authReady } = useApp();
+  const { isAuthenticated, authReady, sidebarCollapsed } = useApp();
   const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
@@ -41,7 +41,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#F1F5F9] dark:bg-[#060B13] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       <Sidebar />
       <Header />
-      <main className="flex-1 pt-16 pl-[76px] transition-all duration-300 ease-in-out">
+      <main className={`flex-1 pt-16 transition-all duration-300 ease-in-out ${
+        sidebarCollapsed ? 'pl-[76px]' : 'pl-[240px]'
+      }`}>
         <div className="max-w-[1440px] mx-auto p-5 sm:p-6 lg:p-7">
           {children}
         </div>

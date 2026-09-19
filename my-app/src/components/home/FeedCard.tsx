@@ -1,17 +1,39 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Heart, MessageCircle, Send, Sparkles, UserCheck, ChevronDown, Award } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Heart, MessageCircle, Send, Sparkles, UserCheck, ChevronDown, Award, Smile, SmilePlus } from 'lucide-react';
 import { FeedPost } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { alternateUserMock, currentUserMock, designerUserMock } from '../../data/mockData';
 import { formatRelativeTime } from '../../lib/hallwayDisplay';
+
+const WHATSAPP_EMOJIS = [
+  { key: 'thumbsUp', emoji: '👍', label: 'Like' },
+  { key: 'heart', emoji: '❤️', label: 'Love' },
+  { key: 'joy', emoji: '😂', label: 'Haha' },
+  { key: 'surprised', emoji: '😮', label: 'Wow' },
+  { key: 'sad', emoji: '😢', label: 'Sad' },
+  { key: 'pray', emoji: '🙏', label: 'Thanks' },
+] as const;
 
 export default function FeedCard({ post }: { post: FeedPost }) {
   const { addReaction, addComment, likeComment, currentUser } = useApp();
   const [showComments, setShowComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   // Active commenting persona (defaults to current logged-in user, but allows switching, e.g., to Ranjith)
   const [activePersona, setActivePersona] = useState<{
@@ -118,59 +140,103 @@ export default function FeedCard({ post }: { post: FeedPost }) {
         </div>
       )}
 
-      {/* Card Actions & Reactions (Instagram style toolbar) */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
-        <div className="flex items-center gap-2">
-          {/* Thumbs Up Button */}
-          <button
-            onClick={() => addReaction(post.id, 'thumbsUp')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all font-medium ${post.reactions.userThumbsUp
-                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold'
-                : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            title="Like update"
-          >
-            <span>👍</span>
-            <span>{post.reactions.thumbsUp}</span>
-          </button>
+      {/* WhatsApp-Style Reactions & Comments Bar */}
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 relative">
+        <div className="flex items-center gap-1.5 flex-wrap relative">
+          {/* Floating WhatsApp Reaction Picker */}
+          {showEmojiPicker && (
+            <div
+              ref={pickerRef}
+              className="absolute bottom-full left-0 mb-2 z-30 flex items-center gap-1 bg-white dark:bg-[#1f2c34] px-2.5 py-1.5 rounded-full shadow-2xl border border-slate-200/90 dark:border-slate-700/80 animate-in fade-in zoom-in-95 duration-150 select-none"
+            >
+              {WHATSAPP_EMOJIS.map((item) => {
+                const userKey = `user${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`;
+                const isUserActive = Boolean(post.reactions[userKey]);
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      addReaction(post.id, item.key);
+                      setShowEmojiPicker(false);
+                    }}
+                    title={item.label}
+                    className={`p-1.5 text-xl sm:text-2xl rounded-full transition-all duration-150 hover:scale-130 active:scale-95 cursor-pointer relative ${
+                      isUserActive ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                    }`}
+                  >
+                    <span>{item.emoji}</span>
+                    {isUserActive && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Clap / React Button */}
-          <button
-            onClick={() => addReaction(post.id, 'clap')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all font-medium ${post.reactions.userClap
-                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-semibold'
-                : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            title="Clap celebrate"
-          >
-            <span>👏</span>
-            <span>{post.reactions.clap > 0 ? post.reactions.clap : 'React'}</span>
-          </button>
+          {/* Active Reaction Badges (WhatsApp message reaction pills) */}
+          {WHATSAPP_EMOJIS.map((item) => {
+            const count = post.reactions[item.key] || 0;
+            if (count <= 0) return null;
+            const userKey = `user${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`;
+            const userReacted = Boolean(post.reactions[userKey]);
 
-          {/* Instagram Heart Button */}
-          <button
-            onClick={() => addReaction(post.id, 'heart')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all font-medium ${post.reactions.userHeart
-                ? 'bg-red-50 dark:bg-red-950/40 text-red-500 font-semibold'
-                : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-500 dark:hover:text-red-400'
-              }`}
-            title="Love this update"
-          >
-            <Heart
-              className={`w-3.5 h-3.5 ${post.reactions.userHeart ? 'fill-red-500 text-red-500' : 'text-slate-400'
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => addReaction(post.id, item.key)}
+                title={userReacted ? `Remove ${item.label}` : `React with ${item.label}`}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shadow-2xs border cursor-pointer ${
+                  userReacted
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-400/30'
+                    : 'bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-700/80 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
                 }`}
-            />
-            <span>{post.reactions.heart || 0}</span>
+              >
+                <span className="text-sm leading-none">{item.emoji}</span>
+                <span className="text-[11px] font-bold">{count}</span>
+              </button>
+            );
+          })}
+
+          {/* Legacy Clap badge if count > 0 */}
+          {Boolean(post.reactions.clap && post.reactions.clap > 0) && (
+            <button
+              type="button"
+              onClick={() => addReaction(post.id, 'clap')}
+              title={post.reactions.userClap ? 'Remove Clap' : 'React with Clap'}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shadow-2xs border cursor-pointer ${
+                post.reactions.userClap
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-400/30'
+                  : 'bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-700/80 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <span className="text-sm leading-none">👏</span>
+              <span className="text-[11px] font-bold">{post.reactions.clap}</span>
+            </button>
+          )}
+
+          {/* WhatsApp React Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+            title="React"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer"
+          >
+            <Smile className="w-3.5 h-3.5 text-amber-500" />
+            <span>React</span>
           </button>
         </div>
 
         {/* Comment Count / Drawer Toggle */}
         <button
           onClick={() => setShowComments(!showComments)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-colors font-semibold ${showComments
-              ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400'
-              : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors text-xs font-semibold cursor-pointer ${
+            showComments
+              ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 font-bold'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
         >
           <MessageCircle className="w-3.5 h-3.5" />
           <span>{post.commentsCount} {post.commentsCount === 1 ? 'comment' : 'comments'}</span>
