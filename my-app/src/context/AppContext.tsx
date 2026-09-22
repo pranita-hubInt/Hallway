@@ -30,6 +30,8 @@ interface AppContextType {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean | ((prev: boolean) => boolean)) => void;
   toggleSidebar: () => void;
+  isSidebarHovered: boolean;
+  setIsSidebarHovered: (hovered: boolean) => void;
   activeDepartment: string;
   setActiveDepartment: (dept: string) => void;
   searchQuery: string;
@@ -141,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [loginPortal, setLoginPortal] = useState<'crm' | 'design'>('crm');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true);
+  const [isSidebarHovered, setIsSidebarHovered] = useState<boolean>(false);
   const [activeDepartment, setActiveDepartment] = useState<string>('All Departments');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(initialFeedPosts);
@@ -758,6 +761,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sidebarCollapsed,
         setSidebarCollapsed,
         toggleSidebar,
+        isSidebarHovered,
+        setIsSidebarHovered,
         activeDepartment,
         setActiveDepartment,
         searchQuery,

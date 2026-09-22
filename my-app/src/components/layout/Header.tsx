@@ -13,6 +13,7 @@ export default function Header() {
   const router = useRouter();
   const {
     sidebarCollapsed,
+    isSidebarHovered,
     toggleSidebar,
     searchQuery,
     setSearchQuery,
@@ -24,6 +25,8 @@ export default function Header() {
     toggleTheme,
     logout,
   } = useApp();
+
+  const isExpanded = !sidebarCollapsed || isSidebarHovered;
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -63,8 +66,8 @@ export default function Header() {
     if (pathname === '/targets') return { module: 'HUB Operations', title: 'Operating Targets' };
     if (pathname === '/people') return { module: 'HUB Directory', title: 'People & Directory' };
     if (pathname === '/announcements') return { module: 'HUB Broadcasts', title: 'Announcements' };
-    if (pathname === '/crm-erp') return { module: 'Hows Presales', title: 'Lead Management' };
-    if (pathname === '/insights') return { module: 'Hows Presales', title: 'CRM Insights' };
+    if (pathname === '/crm-erp') return { module: 'Hows CRM', title: 'Lead Management' };
+    if (pathname === '/insights') return { module: 'Hows CRM', title: 'CRM Insights' };
     if (pathname === '/design-erp') return { module: 'Hows Design', title: '3D Spatial Studio' };
     return { module: 'HUB Live', title: 'Home Feed' };
   };
@@ -123,7 +126,7 @@ export default function Header() {
   return (
     <header
       className={`fixed top-0 right-0 z-30 h-16 bg-white dark:bg-[#0B1320] border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between px-6 transition-all duration-300 ease-in-out font-sans ${
-        sidebarCollapsed ? 'left-[76px]' : 'left-[240px]'
+        isExpanded ? 'left-[240px]' : 'left-[76px]'
       }`}
     >
       {/* Left: Sidebar Toggle + Breadcrumb Badge */}

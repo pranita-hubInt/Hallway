@@ -23,6 +23,30 @@ export default function FeedCard({ post }: { post: FeedPost }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const emojiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleEmojiMouseEnter = () => {
+    if (emojiTimeoutRef.current) {
+      clearTimeout(emojiTimeoutRef.current);
+      emojiTimeoutRef.current = null;
+    }
+    setShowEmojiPicker(true);
+  };
+
+  const handleEmojiMouseLeave = () => {
+    if (emojiTimeoutRef.current) {
+      clearTimeout(emojiTimeoutRef.current);
+    }
+    emojiTimeoutRef.current = setTimeout(() => {
+      setShowEmojiPicker(false);
+    }, 250);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (emojiTimeoutRef.current) clearTimeout(emojiTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showEmojiPicker) return;
@@ -143,38 +167,6 @@ export default function FeedCard({ post }: { post: FeedPost }) {
       {/* WhatsApp-Style Reactions & Comments Bar */}
       <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 relative">
         <div className="flex items-center gap-1.5 flex-wrap relative">
-          {/* Floating WhatsApp Reaction Picker */}
-          {showEmojiPicker && (
-            <div
-              ref={pickerRef}
-              className="absolute bottom-full left-0 mb-2 z-30 flex items-center gap-1 bg-white dark:bg-[#1f2c34] px-2.5 py-1.5 rounded-full shadow-2xl border border-slate-200/90 dark:border-slate-700/80 animate-in fade-in zoom-in-95 duration-150 select-none"
-            >
-              {WHATSAPP_EMOJIS.map((item) => {
-                const userKey = `user${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`;
-                const isUserActive = Boolean(post.reactions[userKey]);
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => {
-                      addReaction(post.id, item.key);
-                      setShowEmojiPicker(false);
-                    }}
-                    title={item.label}
-                    className={`p-1.5 text-xl sm:text-2xl rounded-full transition-all duration-150 hover:scale-130 active:scale-95 cursor-pointer relative ${
-                      isUserActive ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'hover:bg-slate-100 dark:hover:bg-slate-700/60'
-                    }`}
-                  >
-                    <span>{item.emoji}</span>
-                    {isUserActive && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-500" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
           {/* Active Reaction Badges (WhatsApp message reaction pills) */}
           {WHATSAPP_EMOJIS.map((item) => {
             const count = post.reactions[item.key] || 0;
@@ -217,16 +209,55 @@ export default function FeedCard({ post }: { post: FeedPost }) {
             </button>
           )}
 
-          {/* WhatsApp React Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setShowEmojiPicker((prev) => !prev)}
-            title="React"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer"
+          {/* React Trigger Button with Hoverable Reaction Picker */}
+          <div
+            className="relative inline-flex items-center"
+            onMouseEnter={handleEmojiMouseEnter}
+            onMouseLeave={handleEmojiMouseLeave}
           >
-            <Smile className="w-3.5 h-3.5 text-amber-500" />
-            <span>React</span>
-          </button>
+            {/* Floating WhatsApp Reaction Picker */}
+            {showEmojiPicker && (
+              <div
+                ref={pickerRef}
+                className="absolute bottom-full left-0 mb-2 z-30 flex items-center gap-1 bg-white dark:bg-[#1f2c34] px-2.5 py-1.5 rounded-full shadow-2xl border border-slate-200/90 dark:border-slate-700/80 animate-in fade-in zoom-in-95 duration-150 select-none"
+              >
+                {WHATSAPP_EMOJIS.map((item) => {
+                  const userKey = `user${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`;
+                  const isUserActive = Boolean(post.reactions[userKey]);
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => {
+                        addReaction(post.id, item.key);
+                        setShowEmojiPicker(false);
+                      }}
+                      title={item.label}
+                      className={`p-1.5 text-xl sm:text-2xl rounded-full transition-all duration-150 hover:scale-130 active:scale-95 cursor-pointer relative ${
+                        isUserActive ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                      }`}
+                    >
+                      <span>{item.emoji}</span>
+                      {isUserActive && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-500" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* WhatsApp React Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              title="React"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer"
+            >
+              <Smile className="w-3.5 h-3.5 text-amber-500" />
+              <span>React</span>
+            </button>
+          </div>
         </div>
 
         {/* Comment Count / Drawer Toggle */}

@@ -9,7 +9,8 @@ import { useApp } from '../../context/AppContext';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, authReady, sidebarCollapsed } = useApp();
+  const { isAuthenticated, authReady, sidebarCollapsed, isSidebarHovered } = useApp();
+  const isExpanded = !sidebarCollapsed || isSidebarHovered;
   const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <Header />
       <main className={`flex-1 pt-16 transition-all duration-300 ease-in-out ${
-        sidebarCollapsed ? 'pl-[76px]' : 'pl-[240px]'
+        isExpanded ? 'pl-[240px]' : 'pl-[76px]'
       }`}>
         <div className="max-w-[1440px] mx-auto p-5 sm:p-6 lg:p-7">
           {children}
