@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Heart, MessageCircle, Send, Sparkles, UserCheck, ChevronDown, Award, Smile, SmilePlus } from 'lucide-react';
+import { Heart, MessageCircle, Send, Sparkles, Award, Smile } from 'lucide-react';
 import { FeedPost } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { alternateUserMock, currentUserMock, designerUserMock } from '../../data/mockData';
 import { formatRelativeTime, cleanPostContent } from '../../lib/hallwayDisplay';
 
 const WHATSAPP_EMOJIS = [
@@ -59,41 +58,10 @@ export default function FeedCard({ post }: { post: FeedPost }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  // Active commenting persona (defaults to current logged-in user, but allows switching, e.g., to Ranjith)
-  const [activePersona, setActivePersona] = useState<{
-    name: string;
-    handle: string;
-    avatar: string;
-    role: string;
-  }>({
-    name: currentUser.name === 'Super Admin' ? 'Ranjith' : currentUser.name,
-    handle: currentUser.name === 'Super Admin' ? 'ranjith' : currentUser.name.toLowerCase().replace(/\s+/g, '.'),
-    avatar: currentUser.name === 'Super Admin' ? alternateUserMock.avatar : currentUser.avatar,
-    role: currentUser.name === 'Super Admin' ? 'CRM Lead' : currentUser.role
-  });
-
-  const [showPersonaPicker, setShowPersonaPicker] = useState(false);
-
-  const availablePersonas = [
-    {
-      name: 'Ranjith',
-      handle: 'ranjith',
-      avatar: alternateUserMock.avatar,
-      role: 'CRM Lead'
-    },
-    {
-      name: 'Super Admin',
-      handle: 'admin',
-      avatar: currentUserMock.avatar,
-      role: 'Leadership HQ'
-    },
-    {
-      name: 'Maya Lin',
-      handle: 'maya.lin',
-      avatar: designerUserMock.avatar,
-      role: 'Design Lead'
-    }
-  ];
+  const currentUserHandle =
+    currentUser.name === 'Super Admin'
+      ? 'admin'
+      : (currentUser.name || 'user').toLowerCase().replace(/\s+/g, '.');
 
   const handleSendComment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -102,10 +70,10 @@ export default function FeedCard({ post }: { post: FeedPost }) {
     setIsSubmitting(true);
     try {
       await addComment(post.id, commentInput, {
-        name: activePersona.name,
-        handle: activePersona.handle,
-        avatar: activePersona.avatar,
-        role: activePersona.role
+        name: currentUser.name,
+        handle: currentUserHandle,
+        avatar: currentUser.avatar,
+        role: currentUser.role
       });
       setCommentInput('');
     } finally {
@@ -287,82 +255,17 @@ export default function FeedCard({ post }: { post: FeedPost }) {
             </div>
           )}
 
-          {/* Active Commenter Banner (Instagram "Commenting as @ranjith") */}
-          <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative shrink-0">
-                <img
-                  src={activePersona.avatar}
-                  alt={activePersona.name}
-                  className="w-7 h-7 rounded-full object-cover ring-2 ring-sky-500/50"
-                />
-                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-slate-900" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-slate-900 dark:text-white truncate">
-                    {activePersona.name}
-                  </span>
-                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-mono font-medium">
-                    @{activePersona.handle}
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 truncate">{activePersona.role}</p>
-              </div>
-            </div>
-
-            {/* Switch Persona Dropdown Toggle */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowPersonaPicker(!showPersonaPicker)}
-                className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-semibold hover:border-sky-400 transition-colors"
-              >
-                <span>Switch profile</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-
-              {showPersonaPicker && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-1.5 z-30 text-xs animate-in fade-in duration-100">
-                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Comment as team member:
-                  </p>
-                  {availablePersonas.map((p) => (
-                    <button
-                      key={p.handle}
-                      type="button"
-                      onClick={() => {
-                        setActivePersona(p);
-                        setShowPersonaPicker(false);
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${activePersona.handle === p.handle
-                          ? 'bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 font-bold'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }`}
-                    >
-                      <img src={p.avatar} alt={p.name} className="w-5 h-5 rounded-full object-cover" />
-                      <div className="min-w-0">
-                        <p className="text-xs truncate">{p.name}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">@{p.handle}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Instagram-Style Comment Input Box */}
           <form onSubmit={handleSendComment} className="space-y-2">
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl px-3 py-2 focus-within:ring-2 focus-within:ring-sky-500/40 focus-within:border-sky-500 transition-all">
               <img
-                src={activePersona.avatar}
-                alt={activePersona.name}
+                src={currentUser.avatar}
+                alt={currentUser.name}
                 className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-300 dark:ring-slate-600 shrink-0"
               />
               <input
                 type="text"
-                placeholder={`Add a comment as @${activePersona.handle}...`}
+                placeholder={`Add a comment as @${currentUserHandle}...`}
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
                 className="flex-1 bg-transparent text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
@@ -459,7 +362,7 @@ export default function FeedCard({ post }: { post: FeedPost }) {
               ))
             ) : (
               <div className="py-4 text-center text-xs text-slate-400">
-                No comments yet. Start the conversation as @{activePersona.handle}!
+                No comments yet. Start the conversation as @{currentUserHandle}!
               </div>
             )}
           </div>

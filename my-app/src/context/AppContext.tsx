@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   User,
   FeedPost,
@@ -20,6 +20,54 @@ import {
 import { fetchFeed, fetchTargets, clearCrmSession } from '../lib/crmApi';
 import { clearDesignHandoff } from '../lib/modulePortals';
 import { isTodayOrYesterday, cleanPostContent, getYesterdayYmd } from '../lib/hallwayDisplay';
+
+function mergeReactions(serverReactions?: any, localReactions?: any) {
+  const blank = {
+    thumbsUp: 0,
+    clap: 0,
+    heart: 0,
+    joy: 0,
+    surprised: 0,
+    pray: 0,
+    userThumbsUp: false,
+    userClap: false,
+    userHeart: false,
+    userJoy: false,
+    userSurprised: false,
+    userPray: false,
+  };
+  const base = { ...blank, ...(serverReactions || {}) };
+  if (!localReactions) return base;
+
+  const reactionKeys = ['thumbsUp', 'clap', 'heart', 'joy', 'surprised', 'pray'] as const;
+  for (const k of reactionKeys) {
+    const userK = `user${k.charAt(0).toUpperCase()}${k.slice(1)}`;
+    if (localReactions[userK] !== undefined) {
+      base[userK] = localReactions[userK];
+    }
+    base[k] = Math.max(Number(base[k]) || 0, Number(localReactions[k]) || 0);
+  }
+  return base;
+}
+
+function mergeComments(serverComments?: any[], localComments?: any[]) {
+  const sList = Array.isArray(serverComments) ? serverComments : [];
+  const lList = Array.isArray(localComments) ? localComments : [];
+  const map = new Map<string, any>();
+  for (const c of sList) {
+    if (c?.id) map.set(c.id, c);
+  }
+  for (const c of lList) {
+    if (c?.id && !map.has(c.id)) {
+      map.set(c.id, c);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    const tA = new Date(a.createdAt || 0).getTime();
+    const tB = new Date(b.createdAt || 0).getTime();
+    return tB - tA;
+  });
+}
 
 interface AppContextType {
   currentUser: User;
@@ -148,6 +196,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeDepartment, setActiveDepartment] = useState<string>('All Departments');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(initialFeedPosts);
+  const feedPostsRef = useRef<FeedPost[]>(feedPosts);
+  feedPostsRef.current = feedPosts;
   const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsMock);
   const [crmLeads, setCrmLeads] = useState<CrmLeadItem[]>(crmLeadsMock);
   const [designProjects, setDesignProjects] = useState<DesignProject[]>(designProjectsMock);
@@ -320,6 +370,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      const currentPostsMap = new Map<string, FeedPost>();
+      if (Array.isArray(feedPostsRef.current)) {
+        for (const p of feedPostsRef.current) {
+          if (p?.id) currentPostsMap.set(p.id, p);
+        }
+      }
+
       const seenIds = new Set<string>();
       const targetPosts: FeedPost[] = [];
 
@@ -329,6 +386,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const id = `crm-target-${target.branchId || 'overall'}-${target.yearMonth || 'current'}`;
         if (seenIds.has(id)) continue;
         const existing = announcementsMap.get(id);
+        const existingLocal = currentPostsMap.get(id);
+        const reactions = mergeReactions(existing?.reactions, existingLocal?.reactions);
+        const comments = mergeComments(existing?.comments, existingLocal?.comments);
+        const commentsCount = Math.max(existing?.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
+
         const branchPrefix = target.branchName ? `${target.branchName}: ` : '';
         const title = `${branchPrefix}${target.title}: ${target.current} achieved (${target.progress}%)`;
         const content =
@@ -361,9 +423,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             currentFormatted: target.current,
             targetFormatted: target.target,
           },
-          reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-          commentsCount: existing?.commentsCount || 0,
-          comments: existing?.comments || [],
+          reactions,
+          commentsCount,
+          comments,
           department: 'Sales',
         });
         seenIds.add(id);
@@ -393,12 +455,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (!isTodayOrYesterday(post.createdAt, post.timestamp)) {
               continue;
             }
+            const existingLocal = currentPostsMap.get(post.id);
+            const reactions = mergeReactions(post.reactions, existingLocal?.reactions);
+            const comments = mergeComments(post.comments, existingLocal?.comments);
+            const commentsCount = Math.max(post.comments?.length || post.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
+
             newsPosts.push({
               ...post,
               content: cleanPostContent(post.content),
-              reactions: post.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-              commentsCount: post.comments?.length || post.commentsCount || 0,
-              comments: post.comments || [],
+              reactions,
+              commentsCount,
+              comments,
             });
             seenIds.add(post.id);
           }
@@ -423,6 +490,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const id = `crm-${item.id}`;
           if (seenIds.has(id)) continue;
           const existing = announcementsMap.get(id);
+          const existingLocal = currentPostsMap.get(id);
+          const reactions = mergeReactions(existing?.reactions, existingLocal?.reactions);
+          const comments = mergeComments(existing?.comments, existingLocal?.comments);
+          const commentsCount = Math.max(existing?.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
 
           const authorName = item.author?.name || 'Sales Executive';
           const authorTeam = formatBranchName(item.author?.team);
@@ -446,9 +517,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               team: authorTeam,
             },
             content: cleanPostContent(item.content),
-            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-            commentsCount: existing?.commentsCount || 0,
-            comments: existing?.comments || [],
+            reactions,
+            commentsCount,
+            comments,
             department: (item.department as any) || 'Sales',
           });
           seenIds.add(id);
@@ -457,10 +528,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // c. Yesterday's dynamic CRM gross bookings (23/09/2026) with reactions blank by default
       const yesterdayDateStr = getYesterdayYmd();
-      const yesterdayNewsSeed: FeedPost[] = [
+      const yesterdayNewsSeed = [
         {
           id: 'deal-yesterday-1',
-          type: 'booking',
+          type: 'booking' as const,
           categoryColor: '#10B981',
           title: 'Gross booking · ₹90,259 · Jayashree',
           timestamp: 'Yesterday',
@@ -471,14 +542,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             team: 'Sarjapura',
           },
           content: 'Sreeraj Alakkassery · handled by Jayashree',
-          reactions: announcementsMap.get('deal-yesterday-1')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-          commentsCount: announcementsMap.get('deal-yesterday-1')?.commentsCount || 0,
-          comments: announcementsMap.get('deal-yesterday-1')?.comments || [],
-          department: 'Sales',
+          department: 'Sales' as const,
         },
         {
           id: 'deal-yesterday-2',
-          type: 'booking',
+          type: 'booking' as const,
           categoryColor: '#10B981',
           title: 'Gross booking · ₹54,329 · Jayashree',
           timestamp: 'Yesterday',
@@ -489,14 +557,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             team: 'Sarjapura',
           },
           content: 'Nagaraju Nalam · handled by Jayashree',
-          reactions: announcementsMap.get('deal-yesterday-2')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-          commentsCount: announcementsMap.get('deal-yesterday-2')?.commentsCount || 0,
-          comments: announcementsMap.get('deal-yesterday-2')?.comments || [],
-          department: 'Sales',
+          department: 'Sales' as const,
         },
         {
           id: 'deal-yesterday-3',
-          type: 'booking',
+          type: 'booking' as const,
           categoryColor: '#10B981',
           title: 'Gross booking · ₹18,717 · Akhil Issac',
           timestamp: 'Yesterday',
@@ -507,16 +572,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             team: 'HBR',
           },
           content: 'Thesnim · handled by Akhil Issac',
-          reactions: announcementsMap.get('deal-yesterday-3')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
-          commentsCount: announcementsMap.get('deal-yesterday-3')?.commentsCount || 0,
-          comments: announcementsMap.get('deal-yesterday-3')?.comments || [],
-          department: 'Sales',
+          department: 'Sales' as const,
         },
       ];
 
       for (const item of yesterdayNewsSeed) {
         if (!seenIds.has(item.id)) {
-          newsPosts.push(item);
+          const existing = announcementsMap.get(item.id);
+          const existingLocal = currentPostsMap.get(item.id);
+          const reactions = mergeReactions(existing?.reactions, existingLocal?.reactions);
+          const comments = mergeComments(existing?.comments, existingLocal?.comments);
+          const commentsCount = Math.max(existing?.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
+
+          newsPosts.push({
+            ...item,
+            reactions,
+            commentsCount,
+            comments,
+          });
           seenIds.add(item.id);
         }
       }
@@ -594,6 +667,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addReaction = async (postId: string, reactionType: string) => {
+    const targetPost = feedPosts.find((p) => p.id === postId);
+
     // Optimistic UI update
     setFeedPosts((prev) =>
       prev.map((post) => {
@@ -613,13 +688,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    if (!HALLWAY_LOCAL_API) return;
+    const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
-      await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/reactions`, {
+      const res = await fetch(`${apiUrl}/announcements/${postId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reactionType })
+        body: JSON.stringify({
+          reactionType,
+          postMetadata: targetPost
+            ? {
+                title: targetPost.title,
+                type: targetPost.type,
+                categoryColor: targetPost.categoryColor,
+                content: targetPost.content,
+                authorName: targetPost.author?.name,
+                authorAvatar: targetPost.author?.avatar,
+                authorTeam: targetPost.author?.team,
+                department: targetPost.department,
+                quotaProgress: targetPost.quotaProgress,
+              }
+            : undefined,
+        }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.reactions) {
+          setFeedPosts((prev) =>
+            prev.map((post) => {
+              if (post.id !== postId) return post;
+              return {
+                ...post,
+                reactions: {
+                  ...post.reactions,
+                  ...data.reactions,
+                },
+              };
+            })
+          );
+        }
+      }
     } catch {
       // Silent catch for offline
     }
@@ -646,9 +753,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    if (!HALLWAY_LOCAL_API) return;
+    const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
-      await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/comments/${commentId}/like`, {
+      await fetch(`${apiUrl}/announcements/${postId}/comments/${commentId}/like`, {
         method: 'POST'
       });
     } catch {
@@ -663,6 +770,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!content.trim()) return;
 
+    const targetPost = feedPosts.find((p) => p.id === postId);
     const authorName = customAuthor?.name || currentUser.name;
     const authorRole = customAuthor?.role || currentUser.role;
     const authorAvatar = customAuthor?.avatar || currentUser.avatar;
@@ -687,15 +795,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (post.id !== postId) return post;
         return {
           ...post,
-          commentsCount: post.commentsCount + 1,
-          comments: [newComment, ...post.comments]
+          commentsCount: (post.commentsCount || 0) + 1,
+          comments: [newComment, ...(post.comments || [])]
         };
       })
     );
 
-    if (!HALLWAY_LOCAL_API) return;
+    const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
-      const res = await fetch(`${HALLWAY_LOCAL_API}/announcements/${postId}/comments`, {
+      const res = await fetch(`${apiUrl}/announcements/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -703,7 +811,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           authorName,
           authorHandle,
           authorAvatar,
-          authorRole
+          authorRole,
+          postMetadata: targetPost
+            ? {
+                title: targetPost.title,
+                type: targetPost.type,
+                categoryColor: targetPost.categoryColor,
+                content: targetPost.content,
+                authorName: targetPost.author?.name,
+                authorAvatar: targetPost.author?.avatar,
+                authorTeam: targetPost.author?.team,
+                department: targetPost.department,
+                quotaProgress: targetPost.quotaProgress,
+              }
+            : undefined,
         })
       });
       if (res.ok) {
