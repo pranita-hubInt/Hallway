@@ -12,7 +12,7 @@ export async function POST(request: Request, context: RouteContext) {
     const body = await request.json();
     const { reactionType } = body;
 
-    if (!['thumbsUp', 'clap', 'heart'].includes(reactionType)) {
+    if (!['thumbsUp', 'clap', 'heart', 'joy', 'surprised', 'pray'].includes(reactionType)) {
       return NextResponse.json({ error: 'Invalid reaction type' }, { status: 400 });
     }
 

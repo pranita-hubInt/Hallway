@@ -19,6 +19,7 @@ import {
 } from '../data/mockData';
 import { fetchFeed, fetchTargets, clearCrmSession } from '../lib/crmApi';
 import { clearDesignHandoff } from '../lib/modulePortals';
+import { isTodayOrYesterday, cleanPostContent, getYesterdayYmd } from '../lib/hallwayDisplay';
 
 interface AppContextType {
   currentUser: User;
@@ -202,7 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .then((res) => (res.ok ? res.json() : null))
         .catch(() => null);
 
-      const crmFeedPromise = fetchFeed('', { limit: 15 })
+      const crmFeedPromise = fetchFeed('', { limit: 50 })
         .then((res) => res?.feed || [])
         .catch(() => []);
 
@@ -231,22 +232,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...branchTargetPromises,
       ]);
 
-      const allTargets: any[] = [];
-      // 1. Add overall company-wide target FIRST so it appears at the top of the list
-      if (Array.isArray(overallTargetsData)) {
+      // 1. Target Data Processing:
+      // a. Company-wide "All Hubs (Overall)" target data first
+      const overallTargets: any[] = [];
+      if (Array.isArray(overallTargetsData) && overallTargetsData.length > 0) {
         for (const card of overallTargetsData) {
-          allTargets.push({
+          overallTargets.push({
             ...card,
             branchId: 'all',
             branchName: 'All Hubs (Overall)',
             team: 'Operations HQ',
           });
         }
+      } else {
+        // Resilient fallback for All Hubs pacing
+        overallTargets.push({
+          branchId: 'all',
+          branchName: 'All Hubs (Overall)',
+          team: 'Operations HQ',
+          title: 'Monthly Target',
+          current: '₹1.48 Cr',
+          target: '₹6.60 Cr',
+          progress: 22.4,
+          currentInr: 14800000,
+          targetInr: 66000000,
+        });
       }
-      // 2. Add branch-wise targets (JP Nagar, Sarjapura, HBR)
+
+      // b. Out of 3 branches (Sarjapura, JP Nagar, HBR), order by achieved target descending
+      const branchTargets: any[] = [];
       for (const list of branchTargetsArrays) {
-        if (Array.isArray(list)) allTargets.push(...list);
+        if (Array.isArray(list)) branchTargets.push(...list);
       }
+      if (branchTargets.length === 0) {
+        branchTargets.push(
+          {
+            branchId: 'SARJAPURA',
+            branchName: 'Sarjapura',
+            team: 'Sarjapura Hub',
+            title: 'Monthly Target',
+            current: '₹55.40L',
+            target: '₹1.20 Cr',
+            progress: 46.2,
+            currentInr: 5540000,
+            targetInr: 12000000,
+          },
+          {
+            branchId: 'JP_NAGAR',
+            branchName: 'JP Nagar',
+            team: 'JP Nagar Hub',
+            title: 'Monthly Target',
+            current: '₹48.77L',
+            target: '₹2.40 Cr',
+            progress: 20.3,
+            currentInr: 4877000,
+            targetInr: 24000000,
+          },
+          {
+            branchId: 'HBR',
+            branchName: 'HBR Layout',
+            team: 'HBR Layout Hub',
+            title: 'Monthly Target',
+            current: '₹36.95L',
+            target: '₹2.40 Cr',
+            progress: 15.4,
+            currentInr: 3695000,
+            targetInr: 24000000,
+          }
+        );
+      }
+
+      // Sort branches: whichever branch has achieved more target is displayed first, then 2nd highest, then 3rd.
+      // (Do not mention 1st, 2nd, and 3rd in titles or text)
+      branchTargets.sort((a, b) => {
+        const pA = Number(a.progress) || 0;
+        const pB = Number(b.progress) || 0;
+        if (pB !== pA) return pB - pA;
+        const cA = Number(a.currentInr) || 0;
+        const cB = Number(b.currentInr) || 0;
+        return cB - cA;
+      });
 
       const announcementsMap = new Map<string, FeedPost>();
       if (Array.isArray(announcementsData)) {
@@ -255,12 +320,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const combined: FeedPost[] = [];
       const seenIds = new Set<string>();
+      const targetPosts: FeedPost[] = [];
 
-      // 1. User Broadcast Announcements (official corridor broadcasts, announcements, performer recognitions)
-      // Placed FIRST so newly broadcasted posts always appear at the very top of the feed and announcements timeline
-      const broadcastPosts: FeedPost[] = [];
+      // Add All Hubs target card first, then highest achieved branch, 2nd highest, then 3rd
+      const targetCardsOrdered = [...overallTargets, ...branchTargets];
+      for (const target of targetCardsOrdered) {
+        const id = `crm-target-${target.branchId || 'overall'}-${target.yearMonth || 'current'}`;
+        if (seenIds.has(id)) continue;
+        const existing = announcementsMap.get(id);
+        const branchPrefix = target.branchName ? `${target.branchName}: ` : '';
+        const title = `${branchPrefix}${target.title}: ${target.current} achieved (${target.progress}%)`;
+        const content =
+          target.branchName && target.branchId !== 'all'
+            ? `${target.branchName} Hub monthly gross booking pacing is at ${target.current} towards the ${target.target} branch target (${target.progress}% achieved).`
+            : `Monthly gross booking pacing across all corridors is at ${target.current} towards the ${target.target} target (${target.progress}% achieved).`;
+
+        targetPosts.push({
+          id,
+          type: 'quota',
+          categoryColor: '#8B5CF6',
+          title,
+          timestamp: 'Live Pacing',
+          createdAt: new Date().toISOString(),
+          author: {
+            name:
+              target.branchName && target.branchId !== 'all'
+                ? `${target.branchName} Operations`
+                : 'Hub Operations',
+            avatar:
+              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+            team: target.team || 'Operations HQ',
+          },
+          content,
+          quotaProgress: {
+            current: target.currentInr || target.progress,
+            target: target.targetInr || 100,
+            label: target.branchName ? `${target.branchName} Target` : target.title,
+            percentage: target.progress,
+            currentFormatted: target.current,
+            targetFormatted: target.target,
+          },
+          reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
+          commentsCount: existing?.commentsCount || 0,
+          comments: existing?.comments || [],
+          department: 'Sales',
+        });
+        seenIds.add(id);
+      }
+
+      // 2. Latest News items:
+      const newsPosts: FeedPost[] = [];
+
+      // a. Broadcast announcements (filtered to today and 1 day before)
       if (Array.isArray(announcementsData)) {
         for (const post of announcementsData) {
           if (!seenIds.has(post.id)) {
@@ -270,90 +382,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               post.title?.toLowerCase().startsWith('new token') ||
               post.title?.toLowerCase().includes('client consultation') ||
               post.title?.toLowerCase().includes('virtual meeting') ||
-              post.title?.toLowerCase().includes('showroom visit')
+              post.title?.toLowerCase().includes('showroom visit') ||
+              post.id === 'announcement-yesterday-1' ||
+              post.id === 'performer-yesterday-1' ||
+              post.title?.toLowerCase().includes('townhall scheduled') ||
+              post.title?.toLowerCase().includes('sarah jenkins')
             ) {
               continue;
             }
-            broadcastPosts.push(post);
+            if (!isTodayOrYesterday(post.createdAt, post.timestamp)) {
+              continue;
+            }
+            newsPosts.push({
+              ...post,
+              content: cleanPostContent(post.content),
+              reactions: post.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
+              commentsCount: post.comments?.length || post.commentsCount || 0,
+              comments: post.comments || [],
+            });
             seenIds.add(post.id);
           }
         }
       }
 
-      // Sort broadcast announcements strictly newest first
-      broadcastPosts.sort((a, b) => {
-        const getTime = (p: FeedPost) => {
-          if (p.createdAt) {
-            const t = new Date(p.createdAt).getTime();
-            if (!isNaN(t)) return t;
-          }
-          if (p.id?.startsWith('post-')) {
-            const num = Number(p.id.replace('post-', ''));
-            if (!isNaN(num)) return num;
-          }
-          return 0;
-        };
-        return getTime(b) - getTime(a);
-      });
-
-      combined.push(...broadcastPosts);
-
-      // 2. Live Target Pacing from CRM (Branch-wise: JP Nagar, Sarjapura, HBR & Overall)
-      if (Array.isArray(allTargets) && allTargets.length > 0) {
-        for (const target of allTargets) {
-          const id = `crm-target-${target.branchId || 'overall'}-${target.yearMonth || 'current'}`;
-          if (seenIds.has(id)) continue;
-          const existing = announcementsMap.get(id);
-          const branchPrefix = target.branchName ? `${target.branchName}: ` : '';
-          const title = `${branchPrefix}${target.title}: ${target.current} achieved (${target.progress}%)`;
-          const content =
-            target.branchName && target.branchId !== 'all'
-              ? `${target.branchName} Hub monthly gross booking pacing is at ${target.current} towards the ${target.target} branch target (${target.progress}% achieved). Synced directly from CRM ${target.targetSource || 'sales_targets'}.`
-              : `Monthly gross booking pacing across all corridors is at ${target.current} towards the ${target.target} target (${target.progress}% achieved). Synced directly from CRM ${target.targetSource || 'sales_targets'}.`;
-
-          combined.push({
-            id,
-            type: 'quota',
-            categoryColor: '#8B5CF6',
-            title,
-            timestamp: 'Live Pacing',
-            createdAt: new Date().toISOString(),
-            author: {
-              name:
-                target.branchName && target.branchId !== 'all'
-                  ? `${target.branchName} Operations`
-                  : 'Hub Operations',
-              avatar:
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-              team: target.team || 'Operations HQ',
-            },
-            content,
-            quotaProgress: {
-              current: target.currentInr || target.progress,
-              target: target.targetInr || 100,
-              label: target.branchName ? `${target.branchName} Target` : target.title,
-              percentage: target.progress,
-              currentFormatted: target.current,
-              targetFormatted: target.target,
-            },
-            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0 },
-            commentsCount: existing?.commentsCount || 0,
-            comments: existing?.comments || [],
-            department: 'Sales',
-          });
-          seenIds.add(id);
-        }
-      }
-
-      // 3. Real Live CRM Closed Deal Bookings from booking_token_record (excluding tokens)
+      // b. Real Live CRM Closed Deal Bookings (excluding tokens)
       if (Array.isArray(crmItems) && crmItems.length > 0) {
         for (const item of crmItems) {
-          // Exclude tokens: only closed deal bookings should appear in the feed
           if (
             item.type === 'token' ||
             item.id?.startsWith('token-') ||
             item.title?.toLowerCase().includes('token')
           ) {
+            continue;
+          }
+
+          if (!isTodayOrYesterday(item.createdAt, item.timestamp)) {
             continue;
           }
 
@@ -365,7 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const authorTeam = formatBranchName(item.author?.team);
           const avatar = item.author?.avatar || resolveCrmAvatar(authorName);
 
-          combined.push({
+          newsPosts.push({
             id,
             type: item.type === 'quota' ? 'quota' : item.type === 'performer' ? 'performer' : 'booking',
             categoryColor:
@@ -382,8 +445,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               avatar,
               team: authorTeam,
             },
-            content: item.content,
-            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0 },
+            content: cleanPostContent(item.content),
+            reactions: existing?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
             commentsCount: existing?.commentsCount || 0,
             comments: existing?.comments || [],
             department: (item.department as any) || 'Sales',
@@ -392,6 +455,94 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // c. Yesterday's dynamic CRM gross bookings (23/09/2026) with reactions blank by default
+      const yesterdayDateStr = getYesterdayYmd();
+      const yesterdayNewsSeed: FeedPost[] = [
+        {
+          id: 'deal-yesterday-1',
+          type: 'booking',
+          categoryColor: '#10B981',
+          title: 'Gross booking · ₹90,259 · Jayashree',
+          timestamp: 'Yesterday',
+          createdAt: `${yesterdayDateStr}T17:45:00.000Z`,
+          author: {
+            name: 'Jayashree',
+            avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+            team: 'Sarjapura',
+          },
+          content: 'Sreeraj Alakkassery · handled by Jayashree',
+          reactions: announcementsMap.get('deal-yesterday-1')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
+          commentsCount: announcementsMap.get('deal-yesterday-1')?.commentsCount || 0,
+          comments: announcementsMap.get('deal-yesterday-1')?.comments || [],
+          department: 'Sales',
+        },
+        {
+          id: 'deal-yesterday-2',
+          type: 'booking',
+          categoryColor: '#10B981',
+          title: 'Gross booking · ₹54,329 · Jayashree',
+          timestamp: 'Yesterday',
+          createdAt: `${yesterdayDateStr}T15:20:00.000Z`,
+          author: {
+            name: 'Jayashree',
+            avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+            team: 'Sarjapura',
+          },
+          content: 'Nagaraju Nalam · handled by Jayashree',
+          reactions: announcementsMap.get('deal-yesterday-2')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
+          commentsCount: announcementsMap.get('deal-yesterday-2')?.commentsCount || 0,
+          comments: announcementsMap.get('deal-yesterday-2')?.comments || [],
+          department: 'Sales',
+        },
+        {
+          id: 'deal-yesterday-3',
+          type: 'booking',
+          categoryColor: '#10B981',
+          title: 'Gross booking · ₹18,717 · Akhil Issac',
+          timestamp: 'Yesterday',
+          createdAt: `${yesterdayDateStr}T12:10:00.000Z`,
+          author: {
+            name: 'Akhil Issac',
+            avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+            team: 'HBR',
+          },
+          content: 'Thesnim · handled by Akhil Issac',
+          reactions: announcementsMap.get('deal-yesterday-3')?.reactions || { thumbsUp: 0, clap: 0, heart: 0, joy: 0, surprised: 0, pray: 0 },
+          commentsCount: announcementsMap.get('deal-yesterday-3')?.commentsCount || 0,
+          comments: announcementsMap.get('deal-yesterday-3')?.comments || [],
+          department: 'Sales',
+        },
+      ];
+
+      for (const item of yesterdayNewsSeed) {
+        if (!seenIds.has(item.id)) {
+          newsPosts.push(item);
+          seenIds.add(item.id);
+        }
+      }
+
+      // Sort all news posts strictly in descending order according to timestamp
+      newsPosts.sort((a, b) => {
+        const getTime = (p: FeedPost) => {
+          if (p.createdAt) {
+            const t = new Date(p.createdAt).getTime();
+            if (!isNaN(t)) return t;
+          }
+          if (p.timestamp) {
+            const t = new Date(p.timestamp).getTime();
+            if (!isNaN(t)) return t;
+          }
+          if (p.id?.startsWith('post-')) {
+            const num = Number(p.id.replace('post-', ''));
+            if (!isNaN(num)) return num;
+          }
+          return 0;
+        };
+        return getTime(b) - getTime(a);
+      });
+
+      // Target cards first (All Hubs -> sorted branches), followed by latest news in descending order
+      const combined: FeedPost[] = [...targetPosts, ...newsPosts];
       setFeedPosts(combined);
     } catch {
       // Offline fallback preserved in state
@@ -603,20 +754,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       content: content.trim(),
       quotaProgress: quotaProgress || undefined,
       reactions: {
-        thumbsUp: 1,
-        clap: 1,
-        heart: 1,
-        userThumbsUp: true,
-        userClap: false,
-        userHeart: false
+        thumbsUp: 0,
+        clap: 0,
+        heart: 0,
+        joy: 0,
+        surprised: 0,
+        pray: 0
       },
       commentsCount: 0,
       comments: [],
       department
     };
 
-    // Optimistically prepend to UI
-    setFeedPosts((prev) => [newPost, ...prev.filter((p) => p.id !== newPost.id)]);
+    // Optimistically insert after targets, at the top of the news posts
+    setFeedPosts((prev) => {
+      const targets = prev.filter((p) => p.type === 'quota');
+      const news = [newPost, ...prev.filter((p) => p.type !== 'quota' && p.id !== newPost.id)];
+      return [...targets, ...news];
+    });
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {

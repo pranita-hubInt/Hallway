@@ -494,7 +494,7 @@ function ensureJsonAnnouncement(id: string, defaults?: { title?: string; type?: 
   return post;
 }
 
-export async function toggleReaction(announcementId: string, reactionType: 'thumbsUp' | 'clap' | 'heart') {
+export async function toggleReaction(announcementId: string, reactionType: string) {
   if (!global._hallwayDbUnavailable) {
     try {
       const pool = getPool();

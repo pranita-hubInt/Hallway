@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Plus, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { isTodayOrYesterday } from '../../lib/hallwayDisplay';
 import FeedCard from '../../components/home/FeedCard';
 import NewPostModal from '../../components/home/NewPostModal';
 
@@ -22,8 +23,9 @@ export default function AnnouncementsPage() {
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  // Filter posts
+  // Filter posts (only today's and 1-day before news)
   const filteredAnnouncements = feedPosts.filter((post) => {
+    if (!isTodayOrYesterday(post.createdAt, post.timestamp)) return false;
     if (tagFilter === 'ANNOUNCEMENTS' && post.type !== 'announcement' && post.type !== 'general') return false;
     if (tagFilter === 'PERFORMERS' && post.type !== 'performer') return false;
 

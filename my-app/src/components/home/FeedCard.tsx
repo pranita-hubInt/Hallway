@@ -5,14 +5,14 @@ import { Heart, MessageCircle, Send, Sparkles, UserCheck, ChevronDown, Award, Sm
 import { FeedPost } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { alternateUserMock, currentUserMock, designerUserMock } from '../../data/mockData';
-import { formatRelativeTime } from '../../lib/hallwayDisplay';
+import { formatRelativeTime, cleanPostContent } from '../../lib/hallwayDisplay';
 
 const WHATSAPP_EMOJIS = [
   { key: 'thumbsUp', emoji: '👍', label: 'Like' },
   { key: 'heart', emoji: '❤️', label: 'Love' },
   { key: 'joy', emoji: '😂', label: 'Haha' },
   { key: 'surprised', emoji: '😮', label: 'Wow' },
-  { key: 'sad', emoji: '😢', label: 'Sad' },
+  { key: 'clap', emoji: '👏', label: 'Clap' },
   { key: 'pray', emoji: '🙏', label: 'Thanks' },
 ] as const;
 
@@ -145,7 +145,7 @@ export default function FeedCard({ post }: { post: FeedPost }) {
 
       {/* Post Body Content */}
       <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-        {post.content}
+        {cleanPostContent(post.content)}
       </p>
 
       {/* Quota Progress Bar (if quota milestone post) */}
@@ -191,23 +191,6 @@ export default function FeedCard({ post }: { post: FeedPost }) {
               </button>
             );
           })}
-
-          {/* Legacy Clap badge if count > 0 */}
-          {Boolean(post.reactions.clap && post.reactions.clap > 0) && (
-            <button
-              type="button"
-              onClick={() => addReaction(post.id, 'clap')}
-              title={post.reactions.userClap ? 'Remove Clap' : 'React with Clap'}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all shadow-2xs border cursor-pointer ${
-                post.reactions.userClap
-                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-400/30'
-                  : 'bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-700/80 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              <span className="text-sm leading-none">👏</span>
-              <span className="text-[11px] font-bold">{post.reactions.clap}</span>
-            </button>
-          )}
 
           {/* React Trigger Button with Hoverable Reaction Picker */}
           <div

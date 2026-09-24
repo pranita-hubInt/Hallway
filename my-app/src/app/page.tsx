@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Filter, Plus, ChevronDown, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { isTodayOrYesterday } from '../lib/hallwayDisplay';
 import FeedCard from '../components/home/FeedCard';
 import WidgetToday from '../components/home/WidgetToday';
 import WidgetActions from '../components/home/WidgetActions';
@@ -15,10 +16,11 @@ export default function HomePage() {
   const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'ANNOUNCEMENTS' | 'BOOKINGS' | 'TARGETS' | 'PERFORMERS'>('ALL');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(4);
+  const [visibleCount, setVisibleCount] = useState(10);
 
-  // Filter posts
+  // Filter posts (only today's news and 1-day before news)
   const filteredPosts = feedPosts.filter((post) => {
+    if (!isTodayOrYesterday(post.createdAt, post.timestamp)) return false;
     if (selectedFilter === 'ANNOUNCEMENTS' && post.type !== 'announcement') return false;
     if (selectedFilter === 'BOOKINGS' && post.type !== 'booking') return false;
     if (selectedFilter === 'TARGETS' && post.type !== 'quota') return false;
