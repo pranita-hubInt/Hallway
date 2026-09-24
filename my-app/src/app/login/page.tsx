@@ -164,10 +164,10 @@ export default function LoginPage() {
 
             <div>
               <h1 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Welcome to HUB
+                Pulse of HUB
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                Unified Portal for CRM &amp; Design Studios
+                Where deal momentum turns into dream homes.
               </p>
             </div>
           </div>
@@ -283,7 +283,7 @@ export default function LoginPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Not a member?{' '}
               <span className="font-semibold text-slate-700 dark:text-slate-300">
-                Contact your Admin or TDM for access
+                Contact your Admin for access
               </span>
             </p>
           </div>
