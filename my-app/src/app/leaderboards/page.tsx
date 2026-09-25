@@ -13,6 +13,7 @@ import {
   displayRate,
 } from '../../components/hallway/CorridorGate';
 import { CorridorScopeBar, useCorridorScope } from '../../components/hallway/CorridorScopeBar';
+import { useApp } from '../../context/AppContext';
 import { progressWidth } from '../../lib/hallwayDisplay';
 
 const PERIODS: { label: string; value: LeaderboardPeriod }[] = [
@@ -21,6 +22,15 @@ const PERIODS: { label: string; value: LeaderboardPeriod }[] = [
   { label: 'QTD', value: 'qtd' },
 ];
 
+const DEPARTMENTS = [
+  'All Departments',
+  'Sales',
+  'Design',
+  'Operations',
+  'HR',
+  'Finance',
+] as const;
+
 function TrendMark({ trend }: { trend?: HallwayTrend }) {
   if (trend === 'up') return <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />;
   if (trend === 'down') return <TrendingDown className="w-3.5 h-3.5 text-rose-500" />;
@@ -28,6 +38,7 @@ function TrendMark({ trend }: { trend?: HallwayTrend }) {
 }
 
 function LeaderboardsInner() {
+  const { activeDepartment, setActiveDepartment } = useApp();
   const { branchId, setBranchId, salesManagerId, setSalesManagerId, options } = useCorridorScope();
   const [period, setPeriod] = useState<LeaderboardPeriod>('mtd');
   const [view, setView] = useState<'Individual' | 'Team'>('Individual');
@@ -37,7 +48,15 @@ function LeaderboardsInner() {
   const { data, loading, error } = useLeaderboard(period, { branchId, salesManagerId });
 
   const individuals = useMemo(() => {
-    const rows = data?.individuals || [];
+    let rows = data?.individuals || [];
+    if (activeDepartment && activeDepartment !== 'All Departments') {
+      rows = rows.filter((row) => {
+        if (!row.department) {
+          return activeDepartment === 'Sales';
+        }
+        return row.department.toLowerCase() === activeDepartment.toLowerCase();
+      });
+    }
     if (!localSearch.trim()) return rows;
     const q = localSearch.toLowerCase();
     return rows.filter(
@@ -45,10 +64,18 @@ function LeaderboardsInner() {
         row.name.toLowerCase().includes(q) ||
         (row.role || '').toLowerCase().includes(q)
     );
-  }, [data?.individuals, localSearch]);
+  }, [data?.individuals, localSearch, activeDepartment]);
 
   const teams = useMemo(() => {
-    const rows = data?.teams || [];
+    let rows = data?.teams || [];
+    if (activeDepartment && activeDepartment !== 'All Departments') {
+      rows = rows.filter((row) => {
+        if (!row.department) {
+          return activeDepartment === 'Sales';
+        }
+        return row.department.toLowerCase() === activeDepartment.toLowerCase();
+      });
+    }
     if (!localSearch.trim()) return rows;
     const q = localSearch.toLowerCase();
     return rows.filter(
@@ -56,17 +83,17 @@ function LeaderboardsInner() {
         row.teamName.toLowerCase().includes(q) ||
         (row.leadName || '').toLowerCase().includes(q)
     );
-  }, [data?.teams, localSearch]);
+  }, [data?.teams, localSearch, activeDepartment]);
 
   return (
     <div className="space-y-6 font-sans">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Performance Leaderboards
+            Performance <span className="text-rose-500 dark:text-rose-400">Leaderboards</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Hub gross bookings and conversion as returned by CRM. Metrics are not recomputed here.
+            Real-time velocity metrics across all operating divisions.
           </p>
         </div>
         <div className="relative w-full md:w-64">
@@ -79,6 +106,27 @@ function LeaderboardsInner() {
             className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-[#0D1829] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
+      </div>
+
+      {/* Department Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {DEPARTMENTS.map((dept) => {
+          const isActive = activeDepartment === dept;
+          return (
+            <button
+              key={dept}
+              type="button"
+              onClick={() => setActiveDepartment(dept)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
+                isActive
+                  ? 'bg-[#00E676] text-slate-950 font-bold shadow-xs hover:bg-[#00c853]'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              {dept}
+            </button>
+          );
+        })}
       </div>
 
       <CorridorScopeBar
