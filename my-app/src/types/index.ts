@@ -64,6 +64,7 @@ export interface FeedPost {
   comments: Comment[];
   badgeText?: string;
   department?: 'Sales' | 'Design' | 'Operations' | 'HR' | 'Finance';
+  iconEmoji?: string;
 }
 
 export interface CalendarEvent {

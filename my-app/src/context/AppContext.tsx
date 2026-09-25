@@ -17,7 +17,8 @@ import {
   crmLeadsMock,
   designProjectsMock
 } from '../data/mockData';
-import { fetchFeed, fetchTargets, clearCrmSession } from '../lib/crmApi';
+import { fetchFeed, fetchTargets, clearCrmSession, fetchLeaderboard } from '../lib/crmApi';
+import { generateCrmAnnouncements } from '../lib/crmAnnouncementsGenerator';
 import { clearDesignHandoff } from '../lib/modulePortals';
 import { isTodayOrYesterday, cleanPostContent, getYesterdayYmd } from '../lib/hallwayDisplay';
 
@@ -86,6 +87,7 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   feedPosts: FeedPost[];
+  announcementPosts: FeedPost[];
   addReaction: (postId: string, reactionType: string) => void;
   addComment: (
     postId: string,
@@ -198,6 +200,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(initialFeedPosts);
   const feedPostsRef = useRef<FeedPost[]>(feedPosts);
   feedPostsRef.current = feedPosts;
+  const [announcementPosts, setAnnouncementPosts] = useState<FeedPost[]>([]);
+  const announcementPostsRef = useRef<FeedPost[]>(announcementPosts);
+  announcementPostsRef.current = announcementPosts;
   const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsMock);
   const [crmLeads, setCrmLeads] = useState<CrmLeadItem[]>(crmLeadsMock);
   const [designProjects, setDesignProjects] = useState<DesignProject[]>(designProjectsMock);
@@ -261,6 +266,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .then((res) => res?.cards || [])
         .catch(() => []);
 
+      const crmLeaderboardPromise = fetchLeaderboard('', { period: 'mtd' })
+        .then((res) => res?.individuals || [])
+        .catch(() => []);
+
       const branchTargetPromises = BRANCH_TARGET_CONFIGS.map(async (b) => {
         try {
           const res = await fetchTargets('', { branchId: b.id });
@@ -275,10 +284,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      const [announcementsData, crmItems, overallTargetsData, ...branchTargetsArrays] = await Promise.all([
+      const [announcementsData, crmItems, overallTargetsData, leaderboardData, ...branchTargetsArrays] = await Promise.all([
         announcementsPromise,
         crmFeedPromise,
         crmTargetsPromise,
+        crmLeaderboardPromise,
         ...branchTargetPromises,
       ]);
 
@@ -402,6 +412,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           id,
           type: 'quota',
           categoryColor: '#8B5CF6',
+          iconEmoji: '🎯',
           title,
           timestamp: 'Live Pacing',
           createdAt: new Date().toISOString(),
@@ -472,7 +483,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // b. Real Live CRM Closed Deal Bookings (excluding tokens)
+      // 2. Dashboard News items (Live CRM bookings today/yesterday + yesterday's seed + broadcasts)
+      const dashboardNewsPosts: FeedPost[] = [];
+
+      // a. Broadcast announcements (filtered to today and 1 day before)
+      if (Array.isArray(announcementsData)) {
+        for (const post of announcementsData) {
+          if (!seenIds.has(post.id)) {
+            if (
+              post.id?.startsWith('crm-token-') ||
+              post.id?.startsWith('crm-event-') ||
+              post.title?.toLowerCase().startsWith('new token') ||
+              post.title?.toLowerCase().includes('client consultation') ||
+              post.title?.toLowerCase().includes('virtual meeting') ||
+              post.title?.toLowerCase().includes('showroom visit') ||
+              post.id === 'announcement-yesterday-1' ||
+              post.id === 'performer-yesterday-1' ||
+              post.title?.toLowerCase().includes('townhall scheduled') ||
+              post.title?.toLowerCase().includes('sarah jenkins')
+            ) {
+              continue;
+            }
+            if (!isTodayOrYesterday(post.createdAt, post.timestamp)) {
+              continue;
+            }
+            const existingLocal = currentPostsMap.get(post.id);
+            const reactions = mergeReactions(post.reactions, existingLocal?.reactions);
+            const comments = mergeComments(post.comments, existingLocal?.comments);
+            const commentsCount = Math.max(post.comments?.length || post.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
+
+            dashboardNewsPosts.push({
+              ...post,
+              content: cleanPostContent(post.content),
+              reactions,
+              commentsCount,
+              comments,
+            });
+            seenIds.add(post.id);
+          }
+        }
+      }
+
+      // b. Real Live CRM Closed Deal Bookings for Dashboard (formatted as standard gross booking)
       if (Array.isArray(crmItems) && crmItems.length > 0) {
         for (const item of crmItems) {
           if (
@@ -499,7 +551,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const authorTeam = formatBranchName(item.author?.team);
           const avatar = item.author?.avatar || resolveCrmAvatar(authorName);
 
-          newsPosts.push({
+          dashboardNewsPosts.push({
             id,
             type: item.type === 'quota' ? 'quota' : item.type === 'performer' ? 'performer' : 'booking',
             categoryColor:
@@ -526,7 +578,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // c. Yesterday's dynamic CRM gross bookings (23/09/2026) with reactions blank by default
+      // c. Yesterday's dynamic CRM gross bookings seed for Dashboard
       const yesterdayDateStr = getYesterdayYmd();
       const yesterdayNewsSeed = [
         {
@@ -584,7 +636,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const comments = mergeComments(existing?.comments, existingLocal?.comments);
           const commentsCount = Math.max(existing?.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
 
-          newsPosts.push({
+          dashboardNewsPosts.push({
             ...item,
             reactions,
             commentsCount,
@@ -594,8 +646,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Sort all news posts strictly in descending order according to timestamp
-      newsPosts.sort((a, b) => {
+      // Sort dashboard news posts strictly in descending order
+      dashboardNewsPosts.sort((a, b) => {
         const getTime = (p: FeedPost) => {
           if (p.createdAt) {
             const t = new Date(p.createdAt).getTime();
@@ -614,9 +666,76 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return getTime(b) - getTime(a);
       });
 
-      // Target cards first (All Hubs -> sorted branches), followed by latest news in descending order
-      const combined: FeedPost[] = [...targetPosts, ...newsPosts];
-      setFeedPosts(combined);
+      // Dashboard gets targets first (All Hubs -> sorted branches), then dashboard news
+      setFeedPosts([...targetPosts, ...dashboardNewsPosts]);
+
+      // 3. Announcements Page Feed (HUB Live Feed Snippets Engine)
+      // Excludes repeating raw target cards (crm-target-*), and displays rich dynamic CRM announcement snippets!
+      const announcementBroadcasts: FeedPost[] = [];
+      if (Array.isArray(announcementsData)) {
+        for (const post of announcementsData) {
+          if (
+            post.id?.startsWith('crm-token-') ||
+            post.id?.startsWith('crm-event-') ||
+            post.title?.toLowerCase().startsWith('new token') ||
+            post.title?.toLowerCase().includes('client consultation') ||
+            post.title?.toLowerCase().includes('virtual meeting') ||
+            post.title?.toLowerCase().includes('showroom visit') ||
+            post.id === 'announcement-yesterday-1' ||
+            post.id === 'performer-yesterday-1' ||
+            post.title?.toLowerCase().includes('townhall scheduled') ||
+            post.title?.toLowerCase().includes('sarah jenkins')
+          ) {
+            continue;
+          }
+          const existingLocal = currentPostsMap.get(post.id);
+          const reactions = mergeReactions(post.reactions, existingLocal?.reactions);
+          const comments = mergeComments(post.comments, existingLocal?.comments);
+          const commentsCount = Math.max(post.comments?.length || post.commentsCount || 0, comments.length, existingLocal?.commentsCount || 0);
+
+          announcementBroadcasts.push({
+            ...post,
+            content: cleanPostContent(post.content),
+            reactions,
+            commentsCount,
+            comments,
+          });
+        }
+      }
+
+      // Dynamic CRM Snippets Engine (Scenario 1, 2, 3, 4, 5, 6, 7, 9, 10, 16, 23)
+      const dynamicCrmSnippets = generateCrmAnnouncements({
+        crmFeedItems: Array.isArray(crmItems) ? crmItems : [],
+        overallTargets,
+        branchTargets,
+        topPerformers: Array.isArray(leaderboardData) ? leaderboardData : [],
+        existingPostsMap: currentPostsMap,
+      });
+
+      // Merge broadcast announcements + CRM snippet engine
+      const announcementPostsMap = new Map<string, FeedPost>();
+      for (const b of announcementBroadcasts) {
+        announcementPostsMap.set(b.id, b);
+      }
+      for (const s of dynamicCrmSnippets) {
+        if (!announcementPostsMap.has(s.id)) {
+          announcementPostsMap.set(s.id, s);
+        }
+      }
+
+      const combinedAnnouncements = Array.from(announcementPostsMap.values()).sort((a, b) => {
+        // Broadcasts (created via modal) take top priority
+        const isBroadcastA = a.id?.startsWith('post-');
+        const isBroadcastB = b.id?.startsWith('post-');
+        if (isBroadcastA && !isBroadcastB) return -1;
+        if (!isBroadcastA && isBroadcastB) return 1;
+
+        const tA = new Date(a.createdAt || 0).getTime();
+        const tB = new Date(b.createdAt || 0).getTime();
+        return tB - tA;
+      });
+
+      setAnnouncementPosts(combinedAnnouncements);
     } catch {
       // Offline fallback preserved in state
     }
@@ -667,26 +786,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addReaction = async (postId: string, reactionType: string) => {
-    const targetPost = feedPosts.find((p) => p.id === postId);
+    const targetPost =
+      feedPosts.find((p) => p.id === postId) || announcementPosts.find((p) => p.id === postId);
 
-    // Optimistic UI update
-    setFeedPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const userKey = 'user' + reactionType.charAt(0).toUpperCase() + reactionType.slice(1);
-        const alreadyReacted = Boolean(post.reactions[userKey]);
-        const currentCount = post.reactions[reactionType] || 0;
+    // Optimistic UI update for both feeds
+    const updatePost = (post: FeedPost) => {
+      if (post.id !== postId) return post;
+      const userKey = 'user' + reactionType.charAt(0).toUpperCase() + reactionType.slice(1);
+      const alreadyReacted = Boolean(post.reactions[userKey]);
+      const currentCount = post.reactions[reactionType] || 0;
 
-        return {
-          ...post,
-          reactions: {
-            ...post.reactions,
-            [reactionType]: Math.max(0, currentCount + (alreadyReacted ? -1 : 1)),
-            [userKey]: !alreadyReacted
-          }
-        };
-      })
-    );
+      return {
+        ...post,
+        reactions: {
+          ...post.reactions,
+          [reactionType]: Math.max(0, currentCount + (alreadyReacted ? -1 : 1)),
+          [userKey]: !alreadyReacted,
+        },
+      };
+    };
+
+    setFeedPosts((prev) => prev.map(updatePost));
+    setAnnouncementPosts((prev) => prev.map(updatePost));
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
@@ -733,25 +854,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const likeComment = async (postId: string, commentId: string) => {
-    // Optimistic UI update
-    setFeedPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const updatedComments = post.comments.map((comm) => {
-          if (comm.id !== commentId) return comm;
-          const nextLiked = !comm.userLiked;
-          return {
-            ...comm,
-            userLiked: nextLiked,
-            likes: Math.max(0, (comm.likes || 0) + (nextLiked ? 1 : -1))
-          };
-        });
+    const updateComments = (post: FeedPost) => {
+      if (post.id !== postId) return post;
+      const updatedComments = post.comments.map((comm) => {
+        if (comm.id !== commentId) return comm;
+        const nextLiked = !comm.userLiked;
         return {
-          ...post,
-          comments: updatedComments
+          ...comm,
+          userLiked: nextLiked,
+          likes: Math.max(0, (comm.likes || 0) + (nextLiked ? 1 : -1)),
         };
-      })
-    );
+      });
+      return {
+        ...post,
+        comments: updatedComments,
+      };
+    };
+
+    setFeedPosts((prev) => prev.map(updateComments));
+    setAnnouncementPosts((prev) => prev.map(updateComments));
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
@@ -789,17 +910,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       userLiked: false
     };
 
-    // Optimistic UI update
-    setFeedPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        return {
-          ...post,
-          commentsCount: (post.commentsCount || 0) + 1,
-          comments: [newComment, ...(post.comments || [])]
-        };
-      })
-    );
+    // Optimistic UI update for both feeds
+    const updatePostComments = (post: FeedPost) => {
+      if (post.id !== postId) return post;
+      return {
+        ...post,
+        commentsCount: (post.commentsCount || 0) + 1,
+        comments: [newComment, ...(post.comments || [])],
+      };
+    };
+
+    setFeedPosts((prev) => prev.map(updatePostComments));
+    setAnnouncementPosts((prev) => prev.map(updatePostComments));
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
@@ -893,6 +1015,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const news = [newPost, ...prev.filter((p) => p.type !== 'quota' && p.id !== newPost.id)];
       return [...targets, ...news];
     });
+    setAnnouncementPosts((prev) => [newPost, ...prev.filter((p) => p.id !== newPost.id)]);
 
     const apiUrl = HALLWAY_LOCAL_API || '/api';
     try {
@@ -1044,6 +1167,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         searchQuery,
         setSearchQuery,
         feedPosts,
+        announcementPosts,
         addReaction,
         addComment,
         likeComment,

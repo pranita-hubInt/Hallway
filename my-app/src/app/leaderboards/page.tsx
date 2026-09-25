@@ -13,6 +13,7 @@ import {
   displayRate,
 } from '../../components/hallway/CorridorGate';
 import { CorridorScopeBar, useCorridorScope } from '../../components/hallway/CorridorScopeBar';
+import DepartmentPills from '../../components/common/DepartmentPills';
 import { useApp } from '../../context/AppContext';
 import { progressWidth } from '../../lib/hallwayDisplay';
 
@@ -109,25 +110,7 @@ function LeaderboardsInner() {
       </div>
 
       {/* Department Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {DEPARTMENTS.map((dept) => {
-          const isActive = activeDepartment === dept;
-          return (
-            <button
-              key={dept}
-              type="button"
-              onClick={() => setActiveDepartment(dept)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-                isActive
-                  ? 'bg-[#00E676] text-slate-950 font-bold shadow-xs hover:bg-[#00c853]'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {dept}
-            </button>
-          );
-        })}
-      </div>
+      <DepartmentPills />
 
       <CorridorScopeBar
         branchId={branchId}
